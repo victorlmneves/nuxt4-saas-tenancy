@@ -1,0 +1,46 @@
+import dns from 'node:dns/promises';
+
+interface VerifyOptions {
+    /** Verification method */
+    method: 'cname' | 'txt-record';
+    /** For CNAME: the expected CNAME target (e.g. 'cname.yoursaas.com') */
+    expectedTarget?: string;
+    /** For TXT: the expected TXT record value (e.g. 'yoursaas-verify=abc123') */
+    expectedTxt?: string;
+}
+
+/**
+ * Verify that a custom domain has been correctly configured by the tenant.
+ *
+ * CNAME method: checks that `domain` has a CNAME pointing to `expectedTarget`.
+ * TXT method: checks that `domain` has a TXT record matching `expectedTxt`.
+ * @param domain
+ * @param opts
+ * @example
+ * const verified = await verifyCustomDomain('acme.com', {
+ *   method: 'cname',
+ *   expectedTarget: 'cname.yoursaas.com'
+ * })
+ */
+export async function verifyCustomDomain(domain: string, opts: VerifyOptions): Promise<boolean> {
+    try {
+        if (opts.method === 'cname') {
+            if (!opts.expectedTarget) throw new Error('expectedTarget is required for CNAME verification');
+            const addresses = await dns.resolveCname(domain);
+            return addresses.some((addr) => addr.toLowerCase() === opts.expectedTarget!.toLowerCase().replace(/\.$/, ''));
+        }
+
+        if (opts.method === 'txt-record') {
+            if (!opts.expectedTxt) throw new Error('expectedTxt is required for TXT verification');
+            const records = await dns.resolveTxt(domain);
+            const flat = records.flat().join('');
+            return flat.includes(opts.expectedTxt);
+        }
+
+        return false;
+    } catch (e: any) {
+        // DNS errors (ENOTFOUND, ENODATA) mean verification failed, not a crash
+        if (['ENOTFOUND', 'ENODATA', 'ESERVFAIL'].includes(e.code)) return false;
+        throw e;
+    }
+}

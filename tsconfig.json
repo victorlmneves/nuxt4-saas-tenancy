@@ -1,0 +1,10 @@
+{
+    // Root tsconfig for module source (src/).
+    // Points to the playground's generated tsconfig so Vite/esbuild can resolve
+    // Nuxt aliases (#app, etc.) when building the module runtime composables.
+    "extends": "./playground/.nuxt/tsconfig.json",
+    "compilerOptions": {
+        "module": "ESNext",
+        "types": ["node"]
+    }
+}
