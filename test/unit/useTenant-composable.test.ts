@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { useState, useNuxtApp } from '#app';
 import { useTenant } from '../../src/runtime/composables/useTenant';
 
 // Mock #app before importing the composable.
 // useState is mocked to immediately invoke the factory (no SSR state sharing needed in tests).
+const mockUseState = vi.hoisted(() => vi.fn((_key: string, factory?: () => unknown) => ({ value: factory?.() ?? null })));
+const mockUseNuxtApp = vi.hoisted(() => vi.fn());
+
 vi.mock('#app', () => ({
-    useState: vi.fn((_key: string, factory?: () => unknown) => ({ value: factory?.() ?? null })),
-    useNuxtApp: vi.fn(),
+    useState: mockUseState,
+    useNuxtApp: mockUseNuxtApp,
 }));
 
 afterEach(() => {
@@ -21,15 +23,15 @@ describe('useTenant composable', () => {
         const result = useTenant();
 
         expect(result.value).toBeNull();
-        expect(vi.mocked(useNuxtApp)).not.toHaveBeenCalled();
+        expect(mockUseNuxtApp).not.toHaveBeenCalled();
     });
 
     it('returns the tenant from the SSR context on the server', () => {
         (process as unknown as Record<string, unknown>).server = true;
         const tenant = { id: '1', name: 'Acme Corp' };
-        vi.mocked(useNuxtApp).mockReturnValue({
+        mockUseNuxtApp.mockReturnValue({
             ssrContext: { event: { context: { tenant } } },
-        } as ReturnType<typeof useNuxtApp>);
+        });
 
         const result = useTenant();
 
@@ -39,9 +41,9 @@ describe('useTenant composable', () => {
     it('returns a JSON-round-tripped plain object, not the original reference', () => {
         (process as unknown as Record<string, unknown>).server = true;
         const original = { id: '1', name: 'Acme Corp' };
-        vi.mocked(useNuxtApp).mockReturnValue({
+        mockUseNuxtApp.mockReturnValue({
             ssrContext: { event: { context: { tenant: original } } },
-        } as ReturnType<typeof useNuxtApp>);
+        });
 
         const result = useTenant();
 
@@ -51,9 +53,9 @@ describe('useTenant composable', () => {
 
     it('returns null on the server when event.context.tenant is null', () => {
         (process as unknown as Record<string, unknown>).server = true;
-        vi.mocked(useNuxtApp).mockReturnValue({
+        mockUseNuxtApp.mockReturnValue({
             ssrContext: { event: { context: { tenant: null } } },
-        } as ReturnType<typeof useNuxtApp>);
+        });
 
         const result = useTenant();
 
@@ -62,9 +64,9 @@ describe('useTenant composable', () => {
 
     it('returns null on the server when ssrContext is absent', () => {
         (process as unknown as Record<string, unknown>).server = true;
-        vi.mocked(useNuxtApp).mockReturnValue({
+        mockUseNuxtApp.mockReturnValue({
             ssrContext: null,
-        } as ReturnType<typeof useNuxtApp>);
+        });
 
         const result = useTenant();
 
@@ -74,6 +76,6 @@ describe('useTenant composable', () => {
     it('passes the key "__nuxt_tenant" to useState', () => {
         useTenant();
 
-        expect(vi.mocked(useState)).toHaveBeenCalledWith('__nuxt_tenant', expect.any(Function));
+        expect(mockUseState).toHaveBeenCalledWith('__nuxt_tenant', expect.any(Function));
     });
 });
