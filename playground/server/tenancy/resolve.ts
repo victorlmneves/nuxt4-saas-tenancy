@@ -1,3 +1,8 @@
+// defineTenantResolver is auto-imported by nuxt-saas-tenancy
+declare const defineTenantResolver: <T extends object>(
+    fn: (key: string) => Promise<T | null | undefined>
+) => (key: string) => Promise<T | null | undefined>;
+
 // Simulated DB — replace with your actual database query
 const TENANTS: Record<string, object> = {
     acme: {
@@ -47,7 +52,7 @@ const TENANTS: Record<string, object> = {
     },
 };
 
-export default defineTenantResolver(async (key) => {
+export default defineTenantResolver(async (key: string) => {
     // Simulate async DB lookup
     await new Promise((r) => setTimeout(r, 5));
 

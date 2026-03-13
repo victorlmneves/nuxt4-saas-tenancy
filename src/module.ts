@@ -119,7 +119,7 @@ export default defineNuxtModule<ModuleOptions>({
         });
 
         // Register '#tenant-resolver' as a Nitro alias pointing to the template
-        nuxt.hook('nitro:config', (nitroConfig) => {
+        nuxt.hook('nitro:config', (nitroConfig: { alias?: Record<string, string> }) => {
             nitroConfig.alias = nitroConfig.alias ?? {};
             nitroConfig.alias['#tenant-resolver'] = resolverTemplate.dst;
         });
