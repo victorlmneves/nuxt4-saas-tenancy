@@ -1,29 +1,10 @@
 <script setup lang="ts">
-import type { TenantTheme } from '../types/tenancy';
-
 const tenant = useTenant();
 
-/**
- * Converts a camelCase theme key to a --kebab-case CSS custom property.
- * @param {TenantTheme} theme - The theme object with camelCase keys
- * @returns {string} CSS custom properties string
- */
-function themeToCSS(theme: TenantTheme): string {
-    return Object.entries(theme)
-        .map(([k, v]) => `  --${k.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${String(v)};`)
-        .join('\n');
-}
-
-useHead(() => {
-    const theme = tenant.value?.theme;
-
-    return {
-        title: tenant.value?.name ?? 'Loading…',
-        style: theme
-            ? [{ key: 'tenant-theme', innerHTML: `:root {\n${themeToCSS(theme)}\n}` }]
-            : [],
-    };
-});
+useHead(() => ({
+    title: tenant.value?.name ?? 'Loading…',
+    link: tenant.value ? [{ key: 'tenant-theme', rel: 'stylesheet', href: `/_tenant/${tenant.value.id}/theme.css` }] : [],
+}));
 </script>
 
 <template>

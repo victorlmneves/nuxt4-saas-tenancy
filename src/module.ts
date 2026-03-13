@@ -159,6 +159,10 @@ export default defineNuxtModule<ModuleOptions>({
                 from: resolve('./runtime/server/utils/useTenant'),
             },
             {
+                name: 'useTenantOrNull',
+                from: resolve('./runtime/server/utils/useTenant'),
+            },
+            {
                 name: 'defineTenantResolver',
                 from: resolve('./runtime/server/utils/defineTenantResolver'),
             },

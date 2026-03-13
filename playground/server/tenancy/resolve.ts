@@ -1,4 +1,5 @@
-// defineTenantResolver is provided by nuxt-saas-tenancy (injected globally at startup)
+import { defineTenantResolver } from '../../../src/runtime/server/utils/defineTenantResolver';
+
 // Simulated DB — replace with your actual database query
 const TENANTS: Record<string, object> = {
     acme: {

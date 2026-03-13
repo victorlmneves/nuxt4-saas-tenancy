@@ -38,6 +38,7 @@ const POSTS: Record<string, { id: string; title: string; body: string; createdAt
 };
 
 export default defineEventHandler((event) => {
-    const tenant = useTenant(event);
-    return POSTS[tenant.id] ?? [];
+    const tenant = event.context.tenant;
+
+    return tenant ? (POSTS[tenant.id] ?? []) : [];
 });
