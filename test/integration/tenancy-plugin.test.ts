@@ -45,6 +45,7 @@ const DEFAULT_CONFIG = {
     headerName: 'x-tenant-id',
     onNotFound: 'throw' as 'throw' | 'null' | `redirect:${string}`,
     cache: { driver: 'memory' as const, ttl: 60 },
+    skipPaths: [] as string[],
 };
 
 type Config = typeof DEFAULT_CONFIG;
@@ -95,6 +96,48 @@ describe('redirect-target skip (infinite loop guard)', () => {
 
         expect(mockResolver).not.toHaveBeenCalled();
         expect(event.context.tenant).toBeNull();
+    });
+});
+
+describe('skipPaths', () => {
+    it('skips resolution for an exact path match', async () => {
+        const hook = buildHook({ ...DEFAULT_CONFIG, skipPaths: ['/_api/health'] });
+        const event = makeEvent('/_api/health');
+        mockGetHeader.mockReturnValue('acme.localhost');
+        await hook(event);
+
+        expect(mockResolver).not.toHaveBeenCalled();
+        expect(event.context.tenant).toBeUndefined();
+    });
+
+    it('skips resolution for a path that starts with a configured prefix', async () => {
+        const hook = buildHook({ ...DEFAULT_CONFIG, skipPaths: ['/webhooks/'] });
+        const event = makeEvent('/webhooks/stripe');
+        mockGetHeader.mockReturnValue('acme.localhost');
+        await hook(event);
+
+        expect(mockResolver).not.toHaveBeenCalled();
+    });
+
+    it('does NOT skip resolution for a path that merely contains the prefix mid-string', async () => {
+        const hook = buildHook({ ...DEFAULT_CONFIG, skipPaths: ['/webhooks/'] });
+        const event = makeEvent('/app/webhooks/stripe');
+        mockGetHeader.mockReturnValue('acme.localhost');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme' });
+        await hook(event);
+
+        expect(mockResolver).toHaveBeenCalled();
+    });
+
+    it('resolves normally when skipPaths is empty', async () => {
+        const hook = buildHook({ ...DEFAULT_CONFIG, skipPaths: [] });
+        const event = makeEvent('/dashboard');
+        mockGetHeader.mockReturnValue('acme.localhost');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme' });
+        await hook(event);
+
+        expect(mockResolver).toHaveBeenCalledWith('acme');
+        expect(event.context.tenant).toEqual({ id: '1', name: 'Acme' });
     });
 });
 

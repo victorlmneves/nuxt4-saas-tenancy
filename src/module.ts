@@ -55,6 +55,14 @@ export interface ModuleOptions {
     onNotFound?: 'throw' | `redirect:${string}` | 'null';
 
     /**
+     * URL path prefixes that bypass tenant resolution entirely.
+     * The built-in Nuxt internals (`/_nuxt`, `/__nuxt`, `/favicon.ico`) are
+     * always skipped and do not need to be listed here.
+     * @example ['/_api/health', '/webhooks/']
+     */
+    skipPaths?: string[];
+
+    /**
      * If true, a DevTools panel is added showing tenant info + cache stats.
      * Defaults to true in development.
      */
@@ -74,6 +82,7 @@ export default defineNuxtModule<ModuleOptions>({
         resolveTenant: '~/server/tenancy/resolve',
         cache: { driver: 'memory', ttl: 60 },
         onNotFound: 'throw',
+        skipPaths: [] as string[],
         devtools: process.env.NODE_ENV === 'development',
     },
 
@@ -146,6 +155,7 @@ export default defineNuxtModule<ModuleOptions>({
             headerName: options.headerName ?? 'x-tenant-id',
             onNotFound: options.onNotFound,
             cache: options.cache,
+            skipPaths: options.skipPaths ?? [],
         });
 
         // ── Client-side ──────────────────────────────────────────────────────────

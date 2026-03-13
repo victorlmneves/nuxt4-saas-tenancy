@@ -461,6 +461,7 @@ export default defineEventHandler(async (event) => {
 | `cache.ttl`      | `number`                                          | `60`                                    | Cache TTL in seconds                                 |
 | `cache.redisUrl` | `string`                                          | `$REDIS_URL` / `redis://localhost:6379` | Redis connection URL (redis driver only)             |
 | `onNotFound`     | `'throw' \| 'redirect:/path' \| 'null'`           | `'throw'`                               | Behaviour when tenant isn't found                    |
+| `skipPaths`      | `string[]`                                        | `[]`                                    | Path prefixes that bypass tenant resolution          |
 | `devtools`       | `boolean`                                         | `true` in dev                           | Show tenant info panel in Nuxt DevTools              |
 
 ---

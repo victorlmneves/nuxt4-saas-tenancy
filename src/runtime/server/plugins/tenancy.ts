@@ -10,6 +10,7 @@ export default defineNitroPlugin((nitroApp) => {
         headerName: string;
         onNotFound: string;
         cache: { driver: 'memory' | 'redis' | 'nitro'; ttl: number; redisUrl?: string };
+        skipPaths: string[];
     };
 
     // Register the cache config globally so invalidateTenantCache() works
@@ -23,6 +24,11 @@ export default defineNitroPlugin((nitroApp) => {
 
         // Skip static assets and Nuxt internals
         if (path.startsWith('/_nuxt/') || path.startsWith('/__nuxt') || path === '/favicon.ico') {
+            return;
+        }
+
+        // Skip user-configured paths
+        if (config.skipPaths?.some((prefix) => path === prefix || path.startsWith(prefix))) {
             return;
         }
 
