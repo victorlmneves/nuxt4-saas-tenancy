@@ -57,12 +57,4 @@ describe('cache (memory driver)', () => {
     });
 });
 
-describe('cache (unsupported driver)', () => {
-    it('returns null for get on an unsupported driver', async () => {
-        expect(await getTenantFromCache('acme', { driver: 'nitro' })).toBeNull();
-    });
-
-    it('is a no-op for set on an unsupported driver', async () => {
-        await expect(setTenantInCache('acme', {}, { driver: 'nitro' })).resolves.toBeUndefined();
-    });
-});
+// The 'nitro' driver is tested in cache-nitro.test.ts (requires mocking nitropack/runtime)

@@ -119,9 +119,9 @@ export default defineNuxtModule<ModuleOptions>({
         });
 
         // Register '#tenant-resolver' as a Nitro alias pointing to the template
-        nuxt.hook('nitro:config', (nitroConfig: { alias?: Record<string, string> }) => {
-            nitroConfig.alias = nitroConfig.alias ?? {};
-            nitroConfig.alias['#tenant-resolver'] = resolverTemplate.dst;
+        nuxt.hook('nitro:config', (nitroConfig) => {
+            nitroConfig.alias ??= {};
+            (nitroConfig.alias as Record<string, string>)['#tenant-resolver'] = resolverTemplate.dst;
         });
 
         // Detect whether we're running under Nuxt 4 (app/ dir) or Nuxt 3 (flat root)

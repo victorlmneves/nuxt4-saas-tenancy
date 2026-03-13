@@ -1,9 +1,10 @@
 /**
- * Simple in-memory + Redis-compatible cache for resolved tenants.
- * Uses a Map for 'memory' driver, or ioredis for 'redis'.
+ * Simple in-memory + Redis + Nitro-storage cache for resolved tenants.
+ * Uses a Map for 'memory' driver, ioredis for 'redis', or Nitro's built-in
+ * useStorage() for 'nitro' (works on Cloudflare Workers, Vercel KV, etc.).
  */
 
-interface CacheOptions {
+export interface CacheOptions {
     driver: 'memory' | 'redis' | 'nitro';
     ttl?: number;
     redisUrl?: string;
@@ -11,6 +12,8 @@ interface CacheOptions {
 
 // In-memory store: key → { value, expiresAt }
 const memoryStore = new Map<string, { value: unknown; expiresAt: number }>();
+
+const NITRO_STORAGE_BASE = 'tenancy';
 
 export async function getTenantFromCache(key: string, opts: CacheOptions): Promise<unknown | null> {
     if (opts.driver === 'memory') {
@@ -36,6 +39,14 @@ export async function getTenantFromCache(key: string, opts: CacheOptions): Promi
         return raw ? JSON.parse(raw) : null;
     }
 
+    if (opts.driver === 'nitro') {
+        const { useStorage } = await import('nitropack/runtime');
+        const storage = useStorage(NITRO_STORAGE_BASE);
+        const value = await storage.getItem<unknown>(key);
+
+        return value ?? null;
+    }
+
     return null;
 }
 
@@ -51,6 +62,17 @@ export async function setTenantInCache(key: string, value: unknown, opts: CacheO
     if (opts.driver === 'redis') {
         const redis = await getRedisClient(opts.redisUrl);
         await redis.set(`tenancy:${key}`, JSON.stringify(value), 'EX', ttl);
+
+        return;
+    }
+
+    if (opts.driver === 'nitro') {
+        const { useStorage } = await import('nitropack/runtime');
+        const storage = useStorage(NITRO_STORAGE_BASE);
+
+        // Nitro storage TTL is expressed in seconds via setItem options
+        // Cast through `object` because unstorage's StorageValue doesn't include arbitrary objects
+        await storage.setItem(key, value as Record<string, unknown>, { ttl });
     }
 }
 
@@ -61,6 +83,15 @@ export async function invalidateTenantCache(key: string, opts?: CacheOptions): P
     if (opts?.driver === 'redis') {
         const redis = await getRedisClient(opts.redisUrl);
         await redis.del(`tenancy:${key}`);
+
+        return;
+    }
+
+    if (opts?.driver === 'nitro') {
+        const { useStorage } = await import('nitropack/runtime');
+        const storage = useStorage(NITRO_STORAGE_BASE);
+
+        await storage.removeItem(key);
     }
 }
 
