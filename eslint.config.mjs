@@ -146,7 +146,7 @@ export default [
         files: ['**/*.{ts, js, mjs, vue, json, jsonc}'],
     },
     {
-        ignores: ['**/*.d.ts', 'styleDictionary/build/', 'styleDictionary/config.js'],
+        ignores: ['**/*.d.ts', 'styleDictionary/build/', 'styleDictionary/config.js', 'coverage/**'],
     },
     js.configs.recommended,
     ...tseslint.configs.recommended,

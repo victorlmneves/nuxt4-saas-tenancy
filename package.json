@@ -29,7 +29,7 @@
         "dev": "nuxt-module-build build --stub && nuxi dev playground",
         "dev:build": "nuxi build playground",
         "lint": "eslint .",
-        "format": "prettier --write '**/*.{ts,vue,js,json}' --ignore-path .gitignore && stylelint '**/*.{css,vue}' --ignore-pattern '.nuxt/**' --ignore-pattern '.output/**' --fix && eslint --fix '**/*.{ts,vue,js}'",
+        "format": "prettier --write '**/*.{ts,vue,js,json}' --ignore-path .gitignore && stylelint '**/*.{css,vue}' --ignore-pattern '.nuxt/**' --ignore-pattern '.output/**' --ignore-pattern 'coverage/**' --fix && eslint --fix '**/*.{ts,vue,js}' --ignore-pattern 'coverage/**'",
         "typecheck": "vue-tsc --noEmit",
         "test": "vitest run",
         "test:watch": "vitest",
