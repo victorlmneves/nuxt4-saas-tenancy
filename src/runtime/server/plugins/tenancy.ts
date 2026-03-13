@@ -1,6 +1,6 @@
 import { defineNitroPlugin, useRuntimeConfig } from 'nitropack/runtime';
 import { getHeader, sendError, createError, sendRedirect, type H3Event } from 'h3';
-import { getTenantFromCache, setTenantInCache } from '../utils/cache';
+import { getTenantFromCache, setTenantInCache, setCacheConfig } from '../utils/cache';
 // @ts-expect-error virtual module - alias '#tenant-resolver' is registered by nuxt-saas-tenancy at build time
 import resolverMod from '#tenant-resolver';
 
@@ -9,8 +9,12 @@ export default defineNitroPlugin((nitroApp) => {
         resolver: 'subdomain' | 'domain' | 'header' | 'custom';
         headerName: string;
         onNotFound: string;
-        cache: { driver: 'memory' | 'redis' | 'nitro'; ttl: number };
+        cache: { driver: 'memory' | 'redis' | 'nitro'; ttl: number; redisUrl?: string };
     };
+
+    // Register the cache config globally so invalidateTenantCache() works
+    // without callers having to re-pass opts on every call.
+    setCacheConfig(config.cache);
 
     const resolverFn: (host: string) => Promise<unknown> = resolverMod?._resolver ?? resolverMod;
 

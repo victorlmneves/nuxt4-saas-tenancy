@@ -15,6 +15,14 @@ const memoryStore = new Map<string, { value: unknown; expiresAt: number }>();
 
 const NITRO_STORAGE_BASE = 'tenancy';
 
+// Module-level cache config — set once at Nitro startup by the tenancy plugin.
+// Allows callers to call invalidateTenantCache(key) without re-passing opts.
+let _defaultCacheOpts: CacheOptions | undefined;
+
+export function setCacheConfig(opts: CacheOptions): void {
+    _defaultCacheOpts = opts;
+}
+
 export async function getTenantFromCache(key: string, opts: CacheOptions): Promise<unknown | null> {
     if (opts.driver === 'memory') {
         const entry = memoryStore.get(key);
@@ -77,17 +85,20 @@ export async function setTenantInCache(key: string, value: unknown, opts: CacheO
 }
 
 export async function invalidateTenantCache(key: string, opts?: CacheOptions): Promise<void> {
+    // Resolve opts: explicit argument takes priority, then the runtime-configured default
+    const resolvedOpts = opts ?? _defaultCacheOpts;
+
     // Always clear memory store
     memoryStore.delete(key);
 
-    if (opts?.driver === 'redis') {
-        const redis = await getRedisClient(opts.redisUrl);
+    if (resolvedOpts?.driver === 'redis') {
+        const redis = await getRedisClient(resolvedOpts.redisUrl);
         await redis.del(`tenancy:${key}`);
 
         return;
     }
 
-    if (opts?.driver === 'nitro') {
+    if (resolvedOpts?.driver === 'nitro') {
         const { useStorage } = await import('nitropack/runtime');
         const storage = useStorage(NITRO_STORAGE_BASE);
 

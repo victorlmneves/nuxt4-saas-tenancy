@@ -138,8 +138,8 @@ export default defineEventHandler(async (event) => {
 
     if (verified) {
         await db.update(tenants).set({ customDomain: domain }).where(...)
-        // Pass your cache options so Redis is also invalidated if you use it
-        await invalidateTenantCache(domain, { driver: 'memory' })
+        // Auto-uses the cache driver configured in nuxt.config.ts
+        await invalidateTenantCache(domain)
     }
 
     return { verified }
@@ -440,8 +440,8 @@ export default defineEventHandler(async (event) => {
             .set({ customDomain: domain })
             .where(eq(tenants.id, tenant.id));
 
-        // Pass your cache options so Redis is also invalidated if you use it
-        await invalidateTenantCache(domain, { driver: 'memory' });
+        // Auto-uses the cache driver configured in nuxt.config.ts
+        await invalidateTenantCache(domain);
     }
 
     return { verified };
