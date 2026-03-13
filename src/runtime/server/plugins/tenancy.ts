@@ -34,10 +34,7 @@ export default defineNitroPlugin((nitroApp) => {
         }
 
         const host = getHeader(event, 'host') ?? '';
-        const tenantKey =
-            config.resolver === 'header'
-                ? (getHeader(event, config.headerName) ?? null)
-                : extractTenantKey(host, config);
+        const tenantKey = config.resolver === 'header' ? (getHeader(event, config.headerName) ?? null) : extractTenantKey(host, config);
 
         if (!tenantKey) {
             return handleNotFound(event, config.onNotFound);

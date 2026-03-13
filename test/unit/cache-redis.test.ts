@@ -11,7 +11,9 @@ const mockRedis = vi.hoisted(() => ({
 vi.mock('ioredis', () => ({
     // Must use a class/function (not arrow fn) so that `new Redis()` works
     default: class {
-        constructor() { return mockRedis as unknown as typeof mockRedis; }
+        constructor() {
+            return mockRedis as unknown as typeof mockRedis;
+        }
     },
 }));
 

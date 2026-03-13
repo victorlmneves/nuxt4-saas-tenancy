@@ -20,7 +20,7 @@ import { getTenantFromCache, setTenantInCache, invalidateTenantCache } from '../
 function extractTenantKey(
     host: string,
     config: { resolver: 'subdomain' | 'domain' | 'header' | 'custom'; headerName: string },
-    headers: Record<string, string> = {},
+    headers: Record<string, string> = {}
 ): string | null {
     const hostname = host.split(':')[0];
 

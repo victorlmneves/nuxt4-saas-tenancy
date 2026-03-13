@@ -14,7 +14,7 @@ const mockGetHeader = vi.hoisted(() => vi.fn<(event: unknown, name: string) => s
 const mockSendError = vi.hoisted(() => vi.fn());
 const mockSendRedirect = vi.hoisted(() => vi.fn());
 const mockCreateError = vi.hoisted(() =>
-    vi.fn((opts: { statusCode: number; message: string }) => ({ statusCode: opts.statusCode, message: opts.message })),
+    vi.fn((opts: { statusCode: number; message: string }) => ({ statusCode: opts.statusCode, message: opts.message }))
 );
 const mockResolver = vi.hoisted(() => vi.fn<(key: string) => Promise<object | null>>());
 const mockUseRuntimeConfig = vi.hoisted(() => vi.fn());
@@ -41,7 +41,7 @@ import plugin from '../../src/runtime/server/plugins/tenancy';
 // --- Helpers -----------------------------------------------------------------
 
 const DEFAULT_CONFIG = {
-    resolver: 'subdomain' as const,
+    resolver: 'subdomain' as 'subdomain' | 'domain' | 'header' | 'custom',
     headerName: 'x-tenant-id',
     onNotFound: 'throw' as 'throw' | 'null' | `redirect:${string}`,
     cache: { driver: 'memory' as const, ttl: 60 },
@@ -74,19 +74,16 @@ beforeEach(async () => {
 });
 
 describe('static asset skip', () => {
-    it.each(['/_nuxt/chunk.js', '/__nuxt_error', '/favicon.ico'])(
-        'skips resolution for "%s"',
-        async (path) => {
-            const hook = buildHook();
-            const event = makeEvent(path);
-            mockGetHeader.mockReturnValue('acme.localhost');
-            await hook(event);
+    it.each(['/_nuxt/chunk.js', '/__nuxt_error', '/favicon.ico'])('skips resolution for "%s"', async (path) => {
+        const hook = buildHook();
+        const event = makeEvent(path);
+        mockGetHeader.mockReturnValue('acme.localhost');
+        await hook(event);
 
-            // Resolver should never be called for internal paths
-            expect(mockResolver).not.toHaveBeenCalled();
-            expect(event.context.tenant).toBeUndefined();
-        },
-    );
+        // Resolver should never be called for internal paths
+        expect(mockResolver).not.toHaveBeenCalled();
+        expect(event.context.tenant).toBeUndefined();
+    });
 });
 
 describe('redirect-target skip (infinite loop guard)', () => {

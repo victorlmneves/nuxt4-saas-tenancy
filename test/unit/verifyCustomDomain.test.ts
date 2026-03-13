@@ -76,15 +76,11 @@ describe('verifyCustomDomain — CNAME method', () => {
     it('rethrows unexpected errors', async () => {
         mockDns.resolveCname.mockRejectedValue(new Error('network failure'));
 
-        await expect(
-            verifyCustomDomain('acme.com', { method: 'cname', expectedTarget: 'x' }),
-        ).rejects.toThrow('network failure');
+        await expect(verifyCustomDomain('acme.com', { method: 'cname', expectedTarget: 'x' })).rejects.toThrow('network failure');
     });
 
     it('throws when expectedTarget is missing', async () => {
-        await expect(verifyCustomDomain('acme.com', { method: 'cname' })).rejects.toThrow(
-            'expectedTarget is required',
-        );
+        await expect(verifyCustomDomain('acme.com', { method: 'cname' })).rejects.toThrow('expectedTarget is required');
     });
 });
 
@@ -110,15 +106,11 @@ describe('verifyCustomDomain — TXT method', () => {
     it('returns false on ENOTFOUND', async () => {
         const err = Object.assign(new Error('ENOTFOUND'), { code: 'ENOTFOUND' });
         mockDns.resolveTxt.mockRejectedValue(err);
-        expect(
-            await verifyCustomDomain('unknown.com', { method: 'txt-record', expectedTxt: 'x' }),
-        ).toBe(false);
+        expect(await verifyCustomDomain('unknown.com', { method: 'txt-record', expectedTxt: 'x' })).toBe(false);
     });
 
     it('throws when expectedTxt is missing', async () => {
-        await expect(verifyCustomDomain('acme.com', { method: 'txt-record' })).rejects.toThrow(
-            'expectedTxt is required',
-        );
+        await expect(verifyCustomDomain('acme.com', { method: 'txt-record' })).rejects.toThrow('expectedTxt is required');
     });
 });
 

@@ -1,5 +1,3 @@
-import { defineTenantResolver } from '../../../src/runtime/server/utils/defineTenantResolver';
-
 // Simulated DB — replace with your actual database query
 const TENANTS: Record<string, object> = {
     acme: {
@@ -9,8 +7,8 @@ const TENANTS: Record<string, object> = {
         plan: 'pro',
         logoUrl: null,
         theme: {
-            colorBrand: '#e74c3c',
-            colorBrandText: '#fff',
+            brand: '#e74c3c',
+            brandText: '#fff',
             colorBgPage: '#fff',
             fontSans: 'Georgia, "Times New Roman", serif',
             radiusMd: '2px',
@@ -24,8 +22,8 @@ const TENANTS: Record<string, object> = {
         plan: 'enterprise',
         logoUrl: null,
         theme: {
-            colorBrand: '#1a1a2e',
-            colorBrandText: '#00d4aa',
+            brand: '#1a1a2e',
+            brandText: '#00d4aa',
             colorBgPage: '#f0f4f8',
             fontSans: '"Inter", system-ui, sans-serif',
             radiusMd: '12px',
@@ -39,8 +37,8 @@ const TENANTS: Record<string, object> = {
         plan: 'free',
         logoUrl: null,
         theme: {
-            colorBrand: '#3498db',
-            colorBrandText: '#fff',
+            brand: '#3498db',
+            brandText: '#fff',
             colorBgPage: '#fff',
             fontSans: '"Courier New", Courier, monospace',
             radiusMd: '0px',

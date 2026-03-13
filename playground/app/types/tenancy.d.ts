@@ -2,9 +2,9 @@ import type { Tenant as BaseTenant } from '../../../src/types';
 
 export interface TenantTheme {
     /** Primary brand color — used for navbar, badges, accents */
-    colorBrand: string;
+    brand: string;
     /** Text color on top of brand-colored surfaces (e.g. navbar) */
-    colorBrandText: string;
+    brandText: string;
     /** Page background color */
     colorBgPage: string;
     /** Font stack */
