@@ -3,7 +3,7 @@ definePageMeta({ layout: false });
 </script>
 
 <template>
-    <div style="font-family: sans-serif; padding: 2rem">
+    <div class="no-tenant">
         <h1>No tenant found</h1>
         <p>
             This app uses subdomain-based tenancy. Try visiting with a subdomain, e.g.
@@ -14,3 +14,9 @@ definePageMeta({ layout: false });
         </p>
     </div>
 </template>
+
+<style scoped>
+.no-tenant {
+    padding: 2rem;
+}
+</style>

@@ -3,6 +3,8 @@ export default defineNuxtConfig({
 
     compatibilityDate: '2026-03-12',
 
+    css: ['~/assets/styles/variables.css'],
+
     // Nuxt 4: source files live in app/ by default.
     // Remove or comment this out if using Nuxt 3 (flat structure).
     future: {

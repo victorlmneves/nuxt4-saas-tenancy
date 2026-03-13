@@ -1,41 +1,87 @@
 <script setup lang="ts">
 const tenant = useTenant();
 
-useHead({
-    title: () => tenant.value?.name ?? 'Loading…',
-    style: [
-        {
-            innerHTML: () => (tenant.value ? `:root { --brand: ${tenant.value.brandColor}; }` : ''),
-            tagPriority: 'critical',
-        },
-    ],
+useHead(() => {
+    const t = tenant.value?.theme;
+    return {
+        title: tenant.value?.name ?? 'Loading…',
+        style: t
+            ? [
+                  {
+                      key: 'tenant-theme',
+                      innerHTML: `:root {
+  --brand:         ${t.colorBrand};
+  --brand-text:    ${t.colorBrandText};
+  --color-bg-page: ${t.colorBgPage};
+  --font-sans:     ${t.fontSans};
+  --radius-md:     ${t.radiusMd};
+  --radius-pill:   ${t.radiusPill};
+}`,
+                  },
+              ]
+            : [],
+    };
 });
 </script>
 
 <template>
-    <div style="font-family: sans-serif; min-height: 100vh">
-        <header
-            style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 0 24px;
-                height: 56px;
-                background: var(--brand, #333);
-                color: white;
-            "
-        >
-            <span style="font-weight: 700; font-size: 18px">
-                {{ tenant?.name }}
-            </span>
-            <nav style="display: flex; gap: 16px">
-                <NuxtLink to="/" style="color: white; text-decoration: none; opacity: 0.9">Dashboard</NuxtLink>
-                <NuxtLink to="/settings/domain" style="color: white; text-decoration: none; opacity: 0.9">Domain Settings</NuxtLink>
+    <div class="layout">
+        <header class="navbar">
+            <span class="navbar__brand">{{ tenant?.name }}</span>
+            <nav class="navbar__nav">
+                <NuxtLink to="/" class="navbar__link">Dashboard</NuxtLink>
+                <NuxtLink to="/settings/domain" class="navbar__link">Domain Settings</NuxtLink>
             </nav>
         </header>
 
-        <main style="max-width: 720px; margin: 40px auto; padding: 0 24px">
+        <main class="layout__main">
             <slot />
         </main>
     </div>
 </template>
+
+<style scoped>
+.layout {
+    min-height: 100vh;
+    background: var(--color-bg-page);
+}
+
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--space-5);
+    height: 56px;
+    background: var(--brand);
+    color: var(--brand-text);
+}
+
+.navbar__brand {
+    font-weight: 700;
+    font-size: var(--font-size-lg);
+    font-family: var(--font-sans);
+}
+
+.navbar__nav {
+    display: flex;
+    gap: var(--space-4);
+}
+
+.navbar__link {
+    color: var(--brand-text);
+    text-decoration: none;
+    opacity: 0.9;
+    font-family: var(--font-sans);
+}
+
+.navbar__link:hover {
+    opacity: 1;
+}
+
+.layout__main {
+    max-width: 720px;
+    margin: var(--space-6) auto;
+    padding: 0 var(--space-5);
+    font-family: var(--font-sans);
+}
+</style>

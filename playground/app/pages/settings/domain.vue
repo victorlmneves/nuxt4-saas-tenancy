@@ -32,43 +32,90 @@ async function verify() {
 <template>
     <div>
         <h1>Custom Domain</h1>
-        <p style="color: #555">
+        <p class="description">
             Point a CNAME record from your domain to
-            <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 4px">cname.yoursaas.com</code>
+            <code class="inline-code">cname.yoursaas.com</code>
             , then click Verify.
         </p>
 
-        <div style="margin-top: 24px; display: flex; gap: 10px">
-            <input
-                v-model="domain"
-                placeholder="acme.com"
-                style="flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 15px"
-            />
-            <button
-                :disabled="status === 'checking'"
-                style="
-                    padding: 8px 20px;
-                    background: var(--brand, #333);
-                    color: white;
-                    border: none;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 15px;
-                "
-                @click="verify"
-            >
+        <div class="input-row">
+            <input v-model="domain" class="domain-input" placeholder="acme.com" />
+            <button class="verify-btn" :disabled="status === 'checking'" @click="verify">
                 {{ status === 'checking' ? 'Checking…' : 'Verify DNS' }}
             </button>
         </div>
 
-        <p v-if="status === 'verified'" style="margin-top: 16px; color: #27ae60; font-weight: 600">✓ Domain verified successfully!</p>
-        <p v-else-if="status === 'failed'" style="margin-top: 16px; color: #e74c3c">
+        <p v-if="status === 'verified'" class="status status--success">✓ Domain verified successfully!</p>
+        <p v-else-if="status === 'failed'" class="status status--error">
             {{ errorMsg || 'DNS not found yet. CNAME changes can take up to 48h to propagate.' }}
         </p>
 
-        <div style="margin-top: 40px; padding: 16px; background: #fffbe6; border-radius: 8px; font-size: 14px">
+        <div class="tenant-info">
             <strong>Current tenant:</strong>
             {{ tenant?.domain }} ({{ tenant?.plan }} plan)
         </div>
     </div>
 </template>
+
+<style scoped>
+.description {
+    color: var(--color-text-dim);
+}
+
+.inline-code {
+    background: var(--color-bg-code);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+}
+
+.input-row {
+    display: flex;
+    gap: 10px;
+    margin-top: var(--space-5);
+}
+
+.domain-input {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+}
+
+.verify-btn {
+    padding: var(--space-2) 20px;
+    background: var(--brand);
+    color: var(--color-text-inverse);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--font-size-base);
+}
+
+.verify-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.status {
+    margin-top: var(--space-4);
+    font-weight: 600;
+}
+
+.status--success {
+    color: var(--color-success);
+}
+
+.status--error {
+    color: var(--color-error);
+    font-weight: normal;
+}
+
+.tenant-info {
+    margin-top: var(--space-6);
+    padding: var(--space-4);
+    background: var(--color-bg-info);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+}
+</style>

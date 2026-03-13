@@ -1,0 +1,63 @@
+/*
+  Design tokens
+  =============
+  Tenant-specific tokens (--brand, --brand-text, --color-bg-page, --font-sans,
+  --radius-md, --radius-pill) are NOT defined here. They are injected at
+  runtime per-tenant by the layout's useHead() call so they always take effect
+  without any stylesheet cascade conflict.
+
+  All tokens below are global and fixed across all tenants.
+*/
+
+:root {
+    /* ── Fixed ─────────────────────────────────────────────────────────── */
+
+    /* Typography */
+    --font-size-xs: 12px;
+    --font-size-sm: 14px;
+    --font-size-base: 15px;
+    --font-size-lg: 18px;
+
+    /* Colours */
+    --color-text: #111;
+    --color-text-muted: #777;
+    --color-text-subtle: #999;
+    --color-text-dim: #555;
+    --color-text-inverse: #fff;
+
+    /* backgrounds */
+    --color-bg-subtle: #f9f9f9;
+    --color-bg-code: #f0f0f0;
+    --color-bg-warning: #fff3cd;
+    --color-bg-info: #fffbe6;
+
+    /* borders & status */
+    --color-border: #ddd;
+    --color-success: #27ae60;
+    --color-error: #e74c3c;
+
+    /* Radii */
+    --radius-sm: 4px;
+    --radius-lg: 8px;
+
+    /* Spacing */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 40px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: var(--color-bg-page);
+    margin: 0;
+}

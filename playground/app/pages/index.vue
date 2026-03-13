@@ -13,44 +13,23 @@ const blocked = useRoute().query.blocked;
 <template>
     <div>
         <div v-if="tenant">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px">
-                <h1 style="margin: 0">Welcome to {{ tenant.name }}</h1>
-                <span
-                    style="
-                        padding: 2px 10px;
-                        border-radius: 20px;
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: white;
-                        background: var(--brand, #333);
-                        text-transform: uppercase;
-                    "
-                >
-                    {{ tenant.plan }}
-                </span>
+            <div class="page-title">
+                <h1 class="page-title__heading">Welcome to {{ tenant.name }}</h1>
+                <span class="plan-badge">{{ tenant.plan }}</span>
             </div>
-            <p style="color: #777; margin-top: 4px">ID: {{ tenant.id }} · {{ tenant.domain }}</p>
+            <p class="tenant-meta">ID: {{ tenant.id }} · {{ tenant.domain }}</p>
 
-            <div
-                v-if="blocked === 'plan'"
-                style="margin: 16px 0; padding: 12px 16px; background: #fff3cd; border-radius: 8px; font-size: 14px"
-            >
-                Domain settings require a Pro or Enterprise plan.
-            </div>
+            <div v-if="blocked === 'plan'" class="alert alert--warning">Domain settings require a Pro or Enterprise plan.</div>
 
             <h2>Posts</h2>
-            <ul v-if="posts?.length" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 12px">
-                <li
-                    v-for="post in posts"
-                    :key="post.id"
-                    style="background: #f9f9f9; border-radius: 8px; padding: 16px; border-left: 4px solid var(--brand, #333)"
-                >
+            <ul v-if="posts?.length" class="post-list">
+                <li v-for="post in posts" :key="post.id" class="post-card">
                     <strong>{{ post.title }}</strong>
-                    <p style="margin: 6px 0 0; color: #555; font-size: 14px">{{ post.body }}</p>
-                    <time style="font-size: 12px; color: #999">{{ post.createdAt }}</time>
+                    <p class="post-card__body">{{ post.body }}</p>
+                    <time class="post-card__date">{{ post.createdAt }}</time>
                 </li>
             </ul>
-            <p v-else style="color: #999">No posts yet.</p>
+            <p v-else class="empty-state">No posts yet.</p>
         </div>
         <div v-else>
             <h1>No tenant found</h1>
@@ -61,3 +40,72 @@ const blocked = useRoute().query.blocked;
         </div>
     </div>
 </template>
+
+<style scoped>
+.page-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+}
+
+.page-title__heading {
+    margin: 0;
+}
+
+.plan-badge {
+    padding: var(--space-1) 10px;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-inverse);
+    background: var(--brand);
+    text-transform: uppercase;
+}
+
+.tenant-meta {
+    color: var(--color-text-muted);
+    margin-top: var(--space-1);
+}
+
+.alert {
+    border-radius: var(--radius-lg);
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--font-size-sm);
+    margin: var(--space-4) 0;
+}
+
+.alert--warning {
+    background: var(--color-bg-warning);
+}
+
+.post-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.post-card {
+    background: var(--color-bg-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    border-left: 4px solid var(--brand);
+}
+
+.post-card__body {
+    margin: 6px 0 0;
+    color: var(--color-text-dim);
+    font-size: var(--font-size-sm);
+}
+
+.post-card__date {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-subtle);
+}
+
+.empty-state {
+    color: var(--color-text-subtle);
+}
+</style>
