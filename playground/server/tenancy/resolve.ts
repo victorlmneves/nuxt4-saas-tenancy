@@ -7,6 +7,7 @@ const TENANTS: Record<string, object> = {
         domain: 'acme',
         brandColor: '#e74c3c',
         plan: 'pro',
+        logoUrl: null,
     },
     globex: {
         id: '2',
@@ -14,6 +15,15 @@ const TENANTS: Record<string, object> = {
         domain: 'globex',
         brandColor: '#2ecc71',
         plan: 'enterprise',
+        logoUrl: null,
+    },
+    initech: {
+        id: '3',
+        name: 'Initech',
+        domain: 'initech',
+        brandColor: '#3498db',
+        plan: 'free',
+        logoUrl: null,
     },
 };
 

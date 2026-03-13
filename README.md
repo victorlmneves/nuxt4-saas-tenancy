@@ -142,6 +142,236 @@ declare module 'nuxt-saas-tenancy' {
 
 ---
 
+## Complete example app
+
+A realistic SaaS app where each tenant has a custom brand color, a plan, and their own data — with custom domain support.
+
+### File structure (Nuxt 4)
+
+```
+├── app/
+│   ├── app.vue
+│   ├── layouts/
+│   │   └── default.vue          ← tenant branding injected here
+│   ├── pages/
+│   │   ├── index.vue            ← tenant dashboard
+│   │   └── settings/
+│   │       └── domain.vue       ← custom domain settings page
+│   ├── middleware/
+│   │   └── plan-guard.ts        ← feature-flag by plan
+│   └── types/
+│       └── tenancy.d.ts
+├── server/
+│   ├── tenancy/
+│   │   └── resolve.ts
+│   └── api/
+│       ├── posts.get.ts
+│       └── domains/
+│           └── verify.post.ts
+└── nuxt.config.ts
+```
+
+### 1. Extend the Tenant type
+
+```ts
+// app/types/tenancy.d.ts
+import type { Tenant as BaseTenant } from 'nuxt-saas-tenancy';
+
+declare module 'nuxt-saas-tenancy' {
+    interface Tenant extends BaseTenant {
+        plan: 'free' | 'pro' | 'enterprise';
+        brandColor: string;
+        logoUrl: string | null;
+    }
+}
+```
+
+### 2. Resolver (Drizzle ORM example)
+
+```ts
+// server/tenancy/resolve.ts
+import { defineTenantResolver } from 'nuxt-saas-tenancy';
+import { db } from '~/server/db';
+import { tenants } from '~/server/db/schema';
+import { or, eq } from 'drizzle-orm';
+
+export default defineTenantResolver(async (key) => {
+    // key is a subdomain OR a custom domain — match both
+    return await db.query.tenants.findFirst({
+        where: or(eq(tenants.domain, key), eq(tenants.customDomain, key)),
+        columns: { id: true, name: true, domain: true, customDomain: true, plan: true, brandColor: true, logoUrl: true, active: true },
+    }) ?? null;
+});
+```
+
+### 3. Tenant-branded layout
+
+```vue
+<!-- app/layouts/default.vue -->
+<script setup lang="ts">
+const tenant = useTenant();
+
+// Inject brand color as a CSS variable for the whole app
+useHead({
+    title: () => tenant.value?.name ?? 'Loading…',
+    style: [
+        {
+            innerHTML: () =>
+                tenant.value ? `:root { --brand: ${tenant.value.brandColor}; }` : '',
+        },
+    ],
+});
+</script>
+
+<template>
+    <div class="app">
+        <header class="navbar">
+            <img v-if="tenant?.logoUrl" :src="tenant.logoUrl" :alt="tenant?.name" class="logo" />
+            <span v-else class="logo-text">{{ tenant?.name }}</span>
+            <nav>
+                <NuxtLink to="/">Dashboard</NuxtLink>
+                <NuxtLink to="/settings/domain">Domain</NuxtLink>
+            </nav>
+        </header>
+
+        <main>
+            <slot />
+        </main>
+    </div>
+</template>
+```
+
+### 4. Dashboard page
+
+```vue
+<!-- app/pages/index.vue -->
+<script setup lang="ts">
+definePageMeta({ layout: 'default' });
+
+const tenant = useTenant();
+const { data: posts } = await useFetch('/api/posts');
+</script>
+
+<template>
+    <div>
+        <h1>Welcome, {{ tenant?.name }}</h1>
+        <p class="plan-badge">{{ tenant?.plan }} plan</p>
+
+        <ul>
+            <li v-for="post in posts" :key="post.id">{{ post.title }}</li>
+        </ul>
+    </div>
+</template>
+```
+
+### 5. Plan-gated route middleware
+
+```ts
+// app/middleware/plan-guard.ts
+export default defineNuxtRouteMiddleware((to) => {
+    const tenant = useTenant();
+
+    if (to.path.startsWith('/settings') && tenant.value?.plan === 'free') {
+        return navigateTo('/?blocked=plan');
+    }
+});
+```
+
+Apply it to any page:
+
+```vue
+<script setup>
+definePageMeta({ middleware: 'plan-guard' });
+</script>
+```
+
+### 6. Tenant-scoped API route
+
+```ts
+// server/api/posts.get.ts
+export default defineEventHandler(async (event) => {
+    const tenant = useTenant(event); // throws 404 if no tenant
+
+    return db.query.posts.findMany({
+        where: eq(posts.tenantId, tenant.id),
+        orderBy: desc(posts.createdAt),
+    });
+});
+```
+
+### 7. Custom domain settings page + verification
+
+```vue
+<!-- app/pages/settings/domain.vue -->
+<script setup lang="ts">
+definePageMeta({ middleware: 'plan-guard' });
+
+const tenant = useTenant();
+const domain = ref(tenant.value?.customDomain ?? '');
+const status = ref<'idle' | 'checking' | 'verified' | 'failed'>('idle');
+const errorMsg = ref('');
+
+async function verify() {
+    if (!domain.value.trim()) return;
+    status.value = 'checking';
+    errorMsg.value = '';
+
+    try {
+        const res = await fetch('/api/domains/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ domain: domain.value.trim() }),
+        });
+        const data = (await res.json()) as { verified: boolean };
+        status.value = data.verified ? 'verified' : 'failed';
+    } catch {
+        status.value = 'failed';
+        errorMsg.value = 'An error occurred. Please try again.';
+    }
+}
+</script>
+
+<template>
+    <div>
+        <h2>Custom Domain</h2>
+        <p>Point a CNAME from your domain to <code>cname.yoursaas.com</code>, then verify below.</p>
+
+        <input v-model="domain" placeholder="acme.com" />
+        <button :disabled="status === 'checking'" @click="verify">
+            {{ status === 'checking' ? 'Checking…' : 'Verify DNS' }}
+        </button>
+
+        <p v-if="status === 'verified'" class="success">Domain verified!</p>
+        <p v-else-if="status === 'failed'" class="error">DNS not found yet. Check your CNAME and try again.</p>
+    </div>
+</template>
+```
+
+```ts
+// server/api/domains/verify.post.ts
+export default defineEventHandler(async (event) => {
+    const tenant = useTenant(event);
+    const { domain } = await readBody<{ domain: string }>(event);
+
+    const verified = await verifyCustomDomain(domain, {
+        method: 'cname',
+        expectedTarget: 'cname.yoursaas.com',
+    });
+
+    if (verified) {
+        await db.update(tenants)
+            .set({ customDomain: domain })
+            .where(eq(tenants.id, tenant.id));
+
+        await invalidateTenantCache(domain);
+    }
+
+    return { verified };
+});
+```
+
+---
+
 ## Configuration
 
 | Option           | Type                                              | Default                      | Description                               |
@@ -202,9 +432,12 @@ Add to `/etc/hosts`:
 ```
 127.0.0.1  acme.localhost
 127.0.0.1  globex.localhost
+127.0.0.1  initech.localhost
 ```
 
-Then visit `http://acme.localhost:3000` and `http://globex.localhost:3000`.
+Then visit `http://acme.localhost:3000`, `http://globex.localhost:3000`, or `http://initech.localhost:3000`.
+
+> `initech` is on the **free** plan — visiting `/settings/domain` will be redirected to the dashboard with a plan-upgrade notice.
 
 ---
 

@@ -1,3 +1,7 @@
+<script setup lang="ts">
+definePageMeta({ layout: false });
+</script>
+
 <template>
     <div style="font-family: sans-serif; padding: 2rem">
         <h1>No tenant found</h1>

@@ -84,12 +84,15 @@ export default defineNuxtModule<ModuleOptions>({
         // '~/server/tenancy/resolve' works in both Nuxt 3 (srcDir=rootDir) and
         // Nuxt 4 (srcDir=app/) — server files always live under rootDir/server/.
         let rawResolverPath = options.resolveTenant;
+
         for (const alias of ['~~', '@@', '~', '@']) {
             if (rawResolverPath.startsWith(`${alias}/`) || rawResolverPath === alias) {
                 rawResolverPath = rawResolverPath.slice(alias.length + 1);
+
                 break;
             }
         }
+
         const resolvedResolverPath = await resolvePath(rawResolverPath, {
             cwd: nuxt.options.rootDir,
         });
@@ -127,8 +130,11 @@ export default defineNuxtModule<ModuleOptions>({
         const isNuxt4 =
             nuxt.options._majorVersion !== undefined
                 ? nuxt.options._majorVersion >= 4
-                : typeof (nuxt.options as any).future?.compatibilityVersion === 'number'
-                  ? (nuxt.options as any).future.compatibilityVersion >= 4
+                : 'future' in nuxt.options &&
+                    nuxt.options.future &&
+                    'compatibilityVersion' in nuxt.options.future &&
+                    typeof nuxt.options.future.compatibilityVersion === 'number'
+                  ? nuxt.options.future.compatibilityVersion >= 4
                   : false;
 
         nuxt.options.runtimeConfig._tenancyIsNuxt4 = isNuxt4;
@@ -201,7 +207,12 @@ export {}
 
         // ── DevTools panel ───────────────────────────────────────────────────────
 
-        if (options.devtools && nuxt.options.devtools?.enabled !== false) {
+        if (
+            options.devtools &&
+            nuxt.options.devtools &&
+            typeof nuxt.options.devtools !== 'boolean' &&
+            nuxt.options.devtools.enabled !== false
+        ) {
             // DevTools integration would be added here via @nuxt/devtools-kit
             // Kept as a stub for the initial release
         }
