@@ -32,7 +32,7 @@ export async function verifyCustomDomain(domain: string, opts: VerifyOptions): P
 
             const addresses = await dns.resolveCname(domain);
 
-            return addresses.some((addr) => addr.toLowerCase() === opts.expectedTarget!.toLowerCase().replace(/\.$/, ''));
+            return addresses.some((addr) => addr.toLowerCase().replace(/\.$/, '') === opts.expectedTarget!.toLowerCase());
         }
 
         if (opts.method === 'txt-record') {

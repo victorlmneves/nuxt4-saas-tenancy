@@ -1,10 +1,10 @@
-import { defineNitroPlugin, useRuntimeConfig, type NitroApp } from 'nitropack/runtime';
+import { defineNitroPlugin, useRuntimeConfig } from 'nitropack/runtime';
 import { getHeader, sendError, createError, sendRedirect, type H3Event } from 'h3';
 import { getTenantFromCache, setTenantInCache } from '../utils/cache';
 // @ts-expect-error virtual module - alias '#tenant-resolver' is registered by nuxt-saas-tenancy at build time
 import resolverMod from '#tenant-resolver';
 
-export default defineNitroPlugin((nitroApp: NitroApp) => {
+export default defineNitroPlugin((nitroApp) => {
     const config = useRuntimeConfig()._tenancy as {
         resolver: 'subdomain' | 'domain' | 'header' | 'custom';
         headerName: string;
@@ -34,7 +34,10 @@ export default defineNitroPlugin((nitroApp: NitroApp) => {
         }
 
         const host = getHeader(event, 'host') ?? '';
-        const tenantKey = extractTenantKey(host, config);
+        const tenantKey =
+            config.resolver === 'header'
+                ? (getHeader(event, config.headerName) ?? null)
+                : extractTenantKey(host, config);
 
         if (!tenantKey) {
             return handleNotFound(event, config.onNotFound);
