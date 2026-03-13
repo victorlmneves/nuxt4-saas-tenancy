@@ -1,5 +1,6 @@
 import {
     defineNuxtModule,
+    addPlugin,
     addServerPlugin,
     addImports,
     addServerImports,
@@ -147,6 +148,11 @@ export default defineNuxtModule<ModuleOptions>({
             cache: options.cache,
         });
 
+        // ── Client-side ──────────────────────────────────────────────────────────
+
+        // Plugin that provides $tenant on the NuxtApp instance
+        addPlugin(resolve('./runtime/plugins/tenant'));
+
         // ── Server-side ──────────────────────────────────────────────────────────
 
         // Nitro plugin that runs on every request and resolves the tenant
@@ -201,7 +207,8 @@ declare module 'h3' {
 
 declare module '#app' {
   interface NuxtApp {
-    $tenant: Tenant | null
+    /** Reactive ref to the current tenant. Alias for useTenant(). */
+    $tenant: import('vue').Ref<Tenant | null>
   }
 }
 
