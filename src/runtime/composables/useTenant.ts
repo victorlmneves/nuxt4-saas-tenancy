@@ -1,4 +1,5 @@
 import { useNuxtApp, useState } from '#app';
+import type { Ref } from 'vue';
 import type { Tenant } from '../../types';
 
 /**
@@ -13,7 +14,7 @@ import type { Tenant } from '../../types';
  * useHead({ title: tenant.value?.name })
  * </script>
  */
-export function useTenant() {
+export function useTenant(): Ref<Tenant | null> {
     // useState provides SSR-safe shared state with automatic payload transfer.
     // JSON round-trip ensures the value is a plain POJO so devalue can serialize
     // it into the SSR payload without throwing "cannot stringify non-POJOs".

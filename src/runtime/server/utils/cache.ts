@@ -174,6 +174,53 @@ export async function invalidateTenantCacheAll(opts?: CacheOptions): Promise<voi
     }
 }
 
+// ── DevTools helpers ─────────────────────────────────────────────────────────
+
+export interface TenantCacheEntry {
+    key: string;
+    /** Absolute expiry timestamp (ms since epoch) */
+    expiresAt: number;
+    /** Seconds remaining until expiry (0 if already expired) */
+    expiresIn: number;
+}
+
+export interface TenantCacheStats {
+    driver: 'memory' | 'redis' | 'nitro';
+    /** Number of live (non-expired) entries. -1 when live enumeration isn't available. */
+    entryCount: number;
+    /** Individual entries — only populated for the memory driver. */
+    entries: TenantCacheEntry[];
+}
+
+/**
+ * Return a snapshot of the current cache state.
+ * For the memory driver, returns all live entries with remaining TTL.
+ * For redis/nitro drivers, returns the driver name only (enumeration is not cheap).
+ * @returns {TenantCacheStats} A snapshot of the current cache state.
+ */
+export function getTenantCacheStats(): TenantCacheStats {
+    const driver = _defaultCacheOpts?.driver ?? 'memory';
+
+    if (driver === 'memory') {
+        const now = Date.now();
+        const entries: TenantCacheEntry[] = [];
+
+        for (const [key, entry] of memoryStore) {
+            if (entry.expiresAt > now) {
+                entries.push({
+                    key,
+                    expiresAt: entry.expiresAt,
+                    expiresIn: Math.max(0, Math.round((entry.expiresAt - now) / 1000)),
+                });
+            }
+        }
+
+        return { driver, entryCount: entries.length, entries };
+    }
+
+    return { driver, entryCount: -1, entries: [] };
+}
+
 // Lazy Redis client singleton
 let _redisClient: import('ioredis').Redis | null = null;
 

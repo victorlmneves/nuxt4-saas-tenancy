@@ -4,6 +4,7 @@ import {
     addServerPlugin,
     addImports,
     addServerImports,
+    addServerHandler,
     createResolver,
     addTypeTemplate,
     addTemplate,
@@ -288,15 +289,48 @@ export {}
         });
 
         // ── DevTools panel ───────────────────────────────────────────────────────
+        //
+        // Registers three dev-only server routes:
+        //   GET  /_tenancy/devtools        → self-contained HTML panel (iframe)
+        //   GET  /_tenancy/devtools/data   → JSON snapshot: config + cache stats
+        //   POST /_tenancy/devtools/invalidate → flush one or all cache entries
+        //
+        // A custom tab is added to Nuxt DevTools that embeds the panel as an iframe.
+        // All handlers return 404 in production even if devtools is accidentally left true.
 
-        if (
-            options.devtools &&
-            nuxt.options.devtools &&
-            typeof nuxt.options.devtools !== 'boolean' &&
-            nuxt.options.devtools.enabled !== false
-        ) {
-            // DevTools integration would be added here via @nuxt/devtools-kit
-            // Kept as a stub for the initial release
+        if (options.devtools) {
+            addServerHandler({
+                route: '/_tenancy/devtools',
+                handler: resolve('./runtime/server/handlers/devtools-panel.get'),
+                method: 'get',
+            });
+
+            addServerHandler({
+                route: '/_tenancy/devtools/data',
+                handler: resolve('./runtime/server/handlers/devtools-data.get'),
+                method: 'get',
+            });
+
+            addServerHandler({
+                route: '/_tenancy/devtools/invalidate',
+                handler: resolve('./runtime/server/handlers/devtools-invalidate.post'),
+                method: 'post',
+            });
+
+            // Hook into Nuxt DevTools to register a custom tab.
+            // The tab is an iframe pointing at the panel route above.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (nuxt as any).hook('devtools:customTabs', (tabs: any[]) => {
+                tabs.push({
+                    name: 'nuxt-saas-tenancy',
+                    title: 'Tenancy',
+                    icon: 'carbon:tenant',
+                    view: {
+                        type: 'iframe',
+                        src: '/_tenancy/devtools',
+                    },
+                });
+            });
         }
     },
 });
