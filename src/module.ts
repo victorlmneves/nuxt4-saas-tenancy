@@ -188,6 +188,10 @@ export default defineNuxtModule<ModuleOptions>({
                 from: resolve('./runtime/server/utils/defineTenantResolver'),
             },
             {
+                name: 'defineTenantEventHandler',
+                from: resolve('./runtime/server/utils/defineTenantEventHandler'),
+            },
+            {
                 name: 'verifyCustomDomain',
                 from: resolve('./runtime/server/utils/verifyCustomDomain'),
             },

@@ -31,7 +31,7 @@ export function setCacheConfig(opts: CacheOptions): void {
     _defaultCacheOpts = opts;
 }
 
-export async function getTenantFromCache(key: string, opts: CacheOptions): Promise<unknown | null> {
+export async function getTenantFromCache<T = unknown>(key: string, opts: CacheOptions): Promise<T | null> {
     if (opts.driver === 'memory') {
         const entry = memoryStore.get(key);
 
@@ -45,20 +45,20 @@ export async function getTenantFromCache(key: string, opts: CacheOptions): Promi
             return null;
         }
 
-        return entry.value;
+        return entry.value as T;
     }
 
     if (opts.driver === 'redis') {
         const redis = await getRedisClient(opts.redisUrl);
         const raw = await redis.get(`tenancy:${key}`);
 
-        return raw ? JSON.parse(raw) : null;
+        return raw ? (JSON.parse(raw) as T) : null;
     }
 
     if (opts.driver === 'nitro') {
         const { useStorage } = await import('nitropack/runtime');
         const storage = useStorage(NITRO_STORAGE_BASE);
-        const value = await storage.getItem<unknown>(key);
+        const value = await storage.getItem<T>(key);
 
         return value ?? null;
     }
@@ -66,7 +66,7 @@ export async function getTenantFromCache(key: string, opts: CacheOptions): Promi
     return null;
 }
 
-export async function setTenantInCache(key: string, value: unknown, opts: CacheOptions): Promise<void> {
+export async function setTenantInCache<T = unknown>(key: string, value: T, opts: CacheOptions): Promise<void> {
     const ttl = opts.ttl ?? 60;
 
     if (opts.driver === 'memory') {
@@ -110,8 +110,8 @@ export async function setTenantInCache(key: string, value: unknown, opts: CacheO
         const storage = useStorage(NITRO_STORAGE_BASE);
 
         // Nitro storage TTL is expressed in seconds via setItem options
-        // Cast through `object` because unstorage's StorageValue doesn't include arbitrary objects
-        await storage.setItem(key, value as Record<string, unknown>, { ttl });
+        // T may be any object; unstorage's StorageValue requires a castable type
+        await storage.setItem(key, value as unknown as Record<string, unknown>, { ttl });
     }
 }
 

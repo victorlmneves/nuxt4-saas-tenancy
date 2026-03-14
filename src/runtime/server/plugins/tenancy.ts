@@ -1,6 +1,7 @@
 import { defineNitroPlugin, useRuntimeConfig } from 'nitropack/runtime';
 import { getHeader, sendError, createError, sendRedirect, type H3Event } from 'h3';
 import { getTenantFromCache, setTenantInCache, setCacheConfig } from '../utils/cache';
+import type { Tenant } from '../../../types';
 // @ts-expect-error virtual module - alias '#tenant-resolver' is registered by nuxt-saas-tenancy at build time
 import resolverMod from '#tenant-resolver';
 
@@ -51,9 +52,15 @@ export default defineNitroPlugin((nitroApp) => {
         }
 
         // Check cache first to avoid DB hit on every request
-        const cached = await getTenantFromCache(tenantKey, config.cache);
+        const cached = await getTenantFromCache<Tenant>(tenantKey, config.cache);
 
         if (cached !== null) {
+            // Respect active flag even on cached tenants — a deactivated tenant
+            // should not be served even if it was cached before deactivation.
+            if (cached.active === false) {
+                return handleNotFound(event, config.onNotFound);
+            }
+
             event.context.tenant = cached;
 
             return;
@@ -71,6 +78,11 @@ export default defineNitroPlugin((nitroApp) => {
         }
 
         if (!tenant) {
+            return handleNotFound(event, config.onNotFound);
+        }
+
+        // Treat explicitly deactivated tenants the same as not-found
+        if ((tenant as Tenant).active === false) {
             return handleNotFound(event, config.onNotFound);
         }
 

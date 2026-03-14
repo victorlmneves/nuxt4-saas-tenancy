@@ -255,3 +255,53 @@ describe('resolver error handling', () => {
         expect(mockCreateError).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 500 }));
     });
 });
+
+describe('tenant.active check', () => {
+    it('treats active=false from the resolver as not-found (throws by default)', async () => {
+        const hook = buildHook();
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('acme.localhost');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme', domain: 'acme', active: false });
+        await hook(event);
+
+        expect(mockSendError).toHaveBeenCalled();
+        expect(mockCreateError).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 404 }));
+        expect(event.context.tenant).toBeUndefined();
+    });
+
+    it('treats active=false from the cache as not-found', async () => {
+        // Prime the cache with an inactive tenant
+        const { setTenantInCache } = await import('../../src/runtime/server/utils/cache');
+        await setTenantInCache('acme', { id: '1', name: 'Acme', domain: 'acme', active: false }, { driver: 'memory', ttl: 60 });
+
+        const hook = buildHook();
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('acme.localhost');
+        await hook(event);
+
+        // Resolver must NOT be called — inactive tenant is caught on cache path
+        expect(mockResolver).not.toHaveBeenCalled();
+        expect(mockSendError).toHaveBeenCalled();
+        expect(mockCreateError).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 404 }));
+    });
+
+    it('serves tenants where active is undefined (field absent)', async () => {
+        const hook = buildHook();
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('acme.localhost');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme', domain: 'acme' });
+        await hook(event);
+
+        expect(event.context.tenant).toEqual({ id: '1', name: 'Acme', domain: 'acme' });
+    });
+
+    it('serves tenants where active=true explicitly', async () => {
+        const hook = buildHook();
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('acme.localhost');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme', domain: 'acme', active: true });
+        await hook(event);
+
+        expect(event.context.tenant).toEqual({ id: '1', name: 'Acme', domain: 'acme', active: true });
+    });
+});
