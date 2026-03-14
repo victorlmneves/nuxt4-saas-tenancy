@@ -487,6 +487,44 @@ export default defineEventHandler(async (event) => {
 
 ---
 
+## DevTools
+
+> Enabled automatically in development. Set `devtools: false` in your `tenancy` config to disable.
+
+Open Nuxt DevTools (click the Nuxt icon at the bottom of your browser) and select the **Tenancy** tab. You can also access the panel directly at `http://localhost:3000/_tenancy/devtools`.
+
+![Tenancy DevTools panel](docs/devtools.png)
+
+### Config card
+
+Shows every resolved option from your `nuxt.config.ts` as it is actually applied at runtime — useful for confirming environment-specific overrides, `reservedSubdomains`, `skipPaths`, etc.
+
+### Cache card
+
+Displays cumulative **hits / misses / evictions** counters for the current server process, plus all live in-memory entries with their remaining TTL (entries expiring in <10 s are highlighted in amber).
+
+Actions:
+- **Refresh** — reload the snapshot manually (auto-refreshes every 5 s)
+- **× Clear all** — flush the entire cache, reset counters, and clear the event log in one go
+- Per-entry **×** button — invalidate a single cache key
+
+> Live entry inspection is only available for the `memory` driver. Redis and Nitro storage show driver name + counters only.
+
+### Events card
+
+A rolling log of the last 50 resolution attempts, newest first:
+
+| Badge | Meaning |
+| --- | --- |
+| `HIT` (green) | Tenant served from cache — resolver was **not** called |
+| `MISS` (amber) | Cache miss — resolver was called and tenant was found and cached |
+| `NOT FOUND` (red) | No tenant resolved — `onNotFound` behaviour was triggered |
+| `SKIP` (grey) | Path matched `skipPaths` — resolution bypassed intentionally |
+
+Each row shows the `hostname → key` mapping, duration in ms, and the wall-clock time of the request.
+
+---
+
 ## Directory structure
 
 ### Nuxt 4

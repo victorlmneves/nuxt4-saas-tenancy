@@ -27,8 +27,13 @@ export default defineNitroPlugin((nitroApp) => {
     nitroApp.hooks.hook('request', async (event: H3Event) => {
         const path = event.path ?? '';
 
-        // Skip static assets and Nuxt internals
-        if (path.startsWith('/_nuxt/') || path.startsWith('/__nuxt') || path === '/favicon.ico') {
+        // Skip static assets, Nuxt internals, and module-owned routes
+        if (
+            path.startsWith('/_nuxt/') ||
+            path.startsWith('/__nuxt') ||
+            path.startsWith('/_tenancy/') ||
+            path === '/favicon.ico'
+        ) {
             return;
         }
 
