@@ -324,7 +324,7 @@ export {}
                 tabs.push({
                     name: 'nuxt-saas-tenancy',
                     title: 'Tenancy',
-                    icon: 'carbon:tenant',
+                    icon: 'carbon:enterprise',
                     view: {
                         type: 'iframe',
                         src: '/_tenancy/devtools',
