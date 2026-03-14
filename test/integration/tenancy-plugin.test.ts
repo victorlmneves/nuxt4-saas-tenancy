@@ -6,7 +6,7 @@
  * the 'request' hook, and invoke that hook synchronously with mock H3Events.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { invalidateTenantCache } from '../../src/runtime/server/utils/cache';
+import { invalidateTenantCache, invalidateTenantCacheAll } from '../../src/runtime/server/utils/cache';
 
 // --- Hoisted mocks (must be created before vi.mock factories run) ------------
 
@@ -44,8 +44,11 @@ const DEFAULT_CONFIG = {
     resolver: 'subdomain' as 'subdomain' | 'domain' | 'header' | 'custom',
     headerName: 'x-tenant-id',
     onNotFound: 'throw' as 'throw' | 'null' | `redirect:${string}`,
+    onError: 'throw' as 'throw' | `redirect:${string}`,
     cache: { driver: 'memory' as const, ttl: 60 },
     skipPaths: [] as string[],
+    baseDomain: '' as string,
+    reservedSubdomains: [] as string[],
 };
 
 type Config = typeof DEFAULT_CONFIG;
@@ -61,7 +64,7 @@ function makeEvent(path = '/dashboard') {
  */
 function buildHook(config: Partial<Config> = {}) {
     mockUseRuntimeConfig.mockReturnValue({ _tenancy: { ...DEFAULT_CONFIG, ...config } });
-    const nitroApp = { hooks: { hook: vi.fn() } };
+    const nitroApp = { hooks: { hook: vi.fn(), callHook: vi.fn().mockResolvedValue(undefined) } };
     (plugin as unknown as (app: typeof nitroApp) => void)(nitroApp);
     return nitroApp.hooks.hook.mock.calls[0]![1] as (event: ReturnType<typeof makeEvent>) => Promise<void>;
 }
@@ -70,8 +73,7 @@ function buildHook(config: Partial<Config> = {}) {
 
 beforeEach(async () => {
     vi.clearAllMocks();
-    await invalidateTenantCache('acme');
-    await invalidateTenantCache('globex');
+    await invalidateTenantCacheAll();
 });
 
 describe('static asset skip', () => {
@@ -207,6 +209,27 @@ describe('cache behaviour', () => {
         expect(mockResolver).not.toHaveBeenCalled();
         expect(event2.context.tenant).toEqual({ id: '1', name: 'Acme' });
     });
+
+    it('calls the resolver again after invalidateTenantCache evicts the entry', async () => {
+        const hook = buildHook();
+        mockGetHeader.mockReturnValue('acme.localhost');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme' });
+
+        // Prime the cache
+        await hook(makeEvent());
+        expect(mockResolver).toHaveBeenCalledTimes(1);
+
+        // Evict the specific entry
+        await invalidateTenantCache('acme');
+
+        // Next request must go back to the resolver
+        vi.clearAllMocks();
+        mockGetHeader.mockReturnValue('acme.localhost');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme' });
+        await hook(makeEvent());
+
+        expect(mockResolver).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('onNotFound strategies', () => {
@@ -303,5 +326,141 @@ describe('tenant.active check', () => {
         await hook(event);
 
         expect(event.context.tenant).toEqual({ id: '1', name: 'Acme', domain: 'acme', active: true });
+    });
+});
+
+describe('custom resolver — passes H3Event to resolver', () => {
+    it('calls the resolver with the full event object, not just the hostname', async () => {
+        const hook = buildHook({ resolver: 'custom' });
+        const event = makeEvent('/dashboard');
+        mockGetHeader.mockReturnValue('acme.yoursaas.com');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme' });
+        await hook(event);
+
+        // Resolver must receive the H3Event, not a string key
+        expect(mockResolver).toHaveBeenCalledWith(expect.objectContaining({ path: '/dashboard' }));
+        expect(event.context.tenant).toEqual({ id: '1', name: 'Acme' });
+    });
+
+    it('uses the hostname as the cache key so repeated requests are served from cache', async () => {
+        const hook = buildHook({ resolver: 'custom' });
+        mockGetHeader.mockReturnValue('acme.yoursaas.com');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme' });
+
+        // First request — hits resolver
+        await hook(makeEvent());
+
+        expect(mockResolver).toHaveBeenCalledTimes(1);
+
+        // Second request — served from cache (resolver not called again)
+        await hook(makeEvent());
+
+        expect(mockResolver).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls handleNotFound when custom resolver returns null', async () => {
+        const hook = buildHook({ resolver: 'custom' });
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('acme.yoursaas.com');
+        mockResolver.mockResolvedValue(null);
+        await hook(event);
+
+        expect(mockSendError).toHaveBeenCalled();
+        expect(mockCreateError).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 404 }));
+    });
+});
+
+describe('baseDomain — subdomain stripping', () => {
+    it('strips baseDomain suffix before using subdomain as key', async () => {
+        const hook = buildHook({ baseDomain: '.yoursaas.com' });
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('acme.yoursaas.com');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme' });
+        await hook(event);
+
+        expect(mockResolver).toHaveBeenCalledWith('acme');
+        expect(event.context.tenant).toEqual({ id: '1', name: 'Acme' });
+    });
+
+    it('falls back to plain multipart split when host does not match baseDomain', async () => {
+        const hook = buildHook({ baseDomain: '.yoursaas.com' });
+        const event = makeEvent();
+        // Local dev host — does not end with .yoursaas.com
+        mockGetHeader.mockReturnValue('acme.localhost');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme' });
+        await hook(event);
+
+        expect(mockResolver).toHaveBeenCalledWith('acme');
+    });
+
+    it('returns null for a bare hostname that does not match baseDomain and has only 1 part', async () => {
+        const hook = buildHook({ baseDomain: '.yoursaas.com' });
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('localhost');
+        await hook(event);
+
+        expect(mockResolver).not.toHaveBeenCalled();
+        expect(mockSendError).toHaveBeenCalled();
+    });
+});
+
+describe('reservedSubdomains', () => {
+    it('treats a reserved subdomain as not-found (throws by default)', async () => {
+        const hook = buildHook({ reservedSubdomains: ['www', 'api'] });
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('www.yoursaas.com');
+        await hook(event);
+
+        expect(mockResolver).not.toHaveBeenCalled();
+        expect(mockSendError).toHaveBeenCalled();
+        expect(mockCreateError).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 404 }));
+    });
+
+    it('resolves normally for a non-reserved subdomain', async () => {
+        const hook = buildHook({ reservedSubdomains: ['www', 'api'] });
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('acme.yoursaas.com');
+        mockResolver.mockResolvedValue({ id: '1', name: 'Acme' });
+        await hook(event);
+
+        expect(mockResolver).toHaveBeenCalledWith('acme');
+        expect(event.context.tenant).toEqual({ id: '1', name: 'Acme' });
+    });
+
+    it('treats all listed reserved subdomains as not-found', async () => {
+        const hook = buildHook({ reservedSubdomains: ['www', 'api', 'mail'] });
+        for (const sub of ['www', 'api', 'mail']) {
+            vi.clearAllMocks();
+            const event = makeEvent();
+            mockGetHeader.mockReturnValue(`${sub}.yoursaas.com`);
+            await hook(event);
+
+            expect(mockResolver).not.toHaveBeenCalled();
+            expect(mockSendError).toHaveBeenCalled();
+        }
+    });
+});
+
+describe('onError option', () => {
+    it('returns 500 by default when the resolver throws', async () => {
+        const hook = buildHook({ onError: 'throw' });
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('acme.localhost');
+        mockResolver.mockRejectedValue(new Error('db connection failed'));
+        await hook(event);
+
+        expect(mockSendError).toHaveBeenCalled();
+        expect(mockCreateError).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 500 }));
+    });
+
+    it('redirects when onError is a redirect string and the resolver throws', async () => {
+        const hook = buildHook({ onError: 'redirect:/error' });
+        const event = makeEvent();
+        mockGetHeader.mockReturnValue('acme.localhost');
+        mockResolver.mockRejectedValue(new Error('db connection failed'));
+        await hook(event);
+
+        expect(mockSendRedirect).toHaveBeenCalledWith(event, '/error', 302);
+        expect(mockSendError).not.toHaveBeenCalled();
     });
 });

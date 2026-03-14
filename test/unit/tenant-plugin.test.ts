@@ -8,6 +8,7 @@ const mockDefineNuxtPlugin = vi.hoisted(() => vi.fn((setup: () => unknown) => se
 vi.mock('#app', () => ({
     defineNuxtPlugin: mockDefineNuxtPlugin,
 }));
+
 vi.mock('../../src/runtime/composables/useTenant', () => ({
     useTenant: mockUseTenant,
 }));

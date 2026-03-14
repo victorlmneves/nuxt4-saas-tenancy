@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createError } from 'h3';
+import { createError, type H3Event } from 'h3';
 import { useTenant, useTenantOrNull } from '../../src/runtime/server/utils/useTenant';
-import type { H3Event } from 'h3';
 import type { Tenant } from '../../src/types';
 
 const FAKE_TENANT: Tenant = { id: '1', name: 'Acme' } as Tenant;

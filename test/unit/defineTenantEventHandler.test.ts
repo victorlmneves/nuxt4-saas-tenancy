@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { defineTenantEventHandler } from '../../src/runtime/server/utils/defineTenantEventHandler';
 
 // Mock h3 before importing the util
 const mockDefineEventHandler = vi.hoisted(() => vi.fn((fn: unknown) => fn));
@@ -6,6 +7,7 @@ const mockCreateError = vi.hoisted(() => vi.fn((opts: { statusCode: number; mess
 
 vi.mock('h3', async (importOriginal) => {
     const actual = (await importOriginal()) as Record<string, unknown>;
+
     return { ...actual, defineEventHandler: mockDefineEventHandler, createError: mockCreateError };
 });
 
@@ -15,8 +17,6 @@ const mockUseTenant = vi.hoisted(() => vi.fn());
 vi.mock('../../src/runtime/server/utils/useTenant', () => ({
     useTenant: mockUseTenant,
 }));
-
-import { defineTenantEventHandler } from '../../src/runtime/server/utils/defineTenantEventHandler';
 
 function makeEvent(path = '/') {
     return { path, context: {} };
@@ -61,6 +61,7 @@ describe('defineTenantEventHandler', () => {
         });
 
         const wrapped = defineTenantEventHandler(async () => 'never');
+
         await expect((wrapped as unknown as (e: ReturnType<typeof makeEvent>) => Promise<string>)(makeEvent())).rejects.toThrow(
             'No tenant'
         );

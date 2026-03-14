@@ -120,3 +120,37 @@ describe('verifyCustomDomain — unknown method', () => {
         expect(await verifyCustomDomain('acme.com', { method: 'spf' })).toBe(false);
     });
 });
+
+describe('verifyCustomDomain — timeout', () => {
+    it('returns false when DNS lookup exceeds the configured timeout', async () => {
+        vi.useFakeTimers();
+
+        // DNS call that never resolves
+        mockDns.resolveCname.mockReturnValue(new Promise(() => {}));
+
+        const promise = verifyCustomDomain('slow.com', {
+            method: 'cname',
+            expectedTarget: 'cname.yoursaas.com',
+            timeout: 100,
+        });
+
+        // Advance time past the timeout
+        vi.advanceTimersByTime(200);
+
+        expect(await promise).toBe(false);
+
+        vi.useRealTimers();
+    });
+
+    it('resolves normally before the timeout fires', async () => {
+        mockDns.resolveCname.mockResolvedValue(['cname.yoursaas.com']);
+
+        const result = await verifyCustomDomain('acme.com', {
+            method: 'cname',
+            expectedTarget: 'cname.yoursaas.com',
+            timeout: 5000,
+        });
+
+        expect(result).toBe(true);
+    });
+});
