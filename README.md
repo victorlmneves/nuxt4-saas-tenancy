@@ -68,6 +68,8 @@ export default defineNuxtConfig({
 
 ## 1. Define your resolver
 
+**Standard modes** (`subdomain`, `domain`, `header`) — resolver receives a `string` key:
+
 ```ts
 // server/tenancy/resolve.ts  ← same path in Nuxt 3 and 4
 // defineTenantResolver is auto-imported — no import needed
@@ -75,6 +77,21 @@ export default defineTenantResolver(async (key) => {
     // key = subdomain or full domain depending on your resolver setting
     return await db.query.tenants.findFirst({
         where: eq(tenants.domain, key),
+    });
+});
+```
+
+**Custom mode** (`resolver: 'custom'`) — resolver receives the full `H3Event`, giving you complete control over how the tenant is identified:
+
+```ts
+// server/tenancy/resolve.ts
+export default defineTenantResolver(async (event) => {
+    // Inspect any part of the request — headers, path, query, cookies, etc.
+    const apiKey = getHeader(event, 'x-api-key');
+    if (!apiKey) return null;
+
+    return await db.query.tenants.findFirst({
+        where: eq(tenants.apiKey, apiKey),
     });
 });
 ```

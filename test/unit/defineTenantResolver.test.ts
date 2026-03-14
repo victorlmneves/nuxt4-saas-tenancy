@@ -42,4 +42,19 @@ describe('defineTenantResolver', () => {
 
         await expect(resolver('acme')).rejects.toThrow('DB connection failed');
     });
+
+    it('forwards an H3Event object to the fn unchanged (custom mode)', async () => {
+        const fakeEvent = { path: '/dashboard', context: { tenant: null } } as unknown as import('h3').H3Event;
+        const received: unknown[] = [];
+
+        const resolver = defineTenantResolver(async (keyOrEvent) => {
+            received.push(keyOrEvent);
+            return null;
+        });
+
+        await resolver(fakeEvent);
+
+        expect(received).toHaveLength(1);
+        expect(received[0]).toBe(fakeEvent);
+    });
 });
