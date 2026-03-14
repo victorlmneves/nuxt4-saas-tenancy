@@ -1,23 +1,30 @@
+import type { H3Event } from 'h3';
+
 /**
  * Type-safe wrapper for your tenant resolver function.
- * The function receives the tenant key (subdomain, domain, etc.)
- * and should return a tenant object or null.
  * @template T - The tenant object type
- * @param {(key: string) => Promise<T | null | undefined>} fn - The resolver function
- * @returns {(key: string) => Promise<T | null | undefined>} The wrapped resolver function, marked with a `_resolver` symbol for the Nitro plugin to identify it.
+ * @param {(keyOrEvent: string | H3Event) => Promise<T | null | undefined>} fn
+ * @returns {(keyOrEvent: string | H3Event) => Promise<T | null | undefined>} The wrapped resolver function with an attached `_resolver` marker.
  * @example
- * // server/tenancy/resolve.ts
- * import { defineTenantResolver } from '#tenancy'
- *
+ * Standard resolvers (`subdomain`, `domain`, `header`) receive a `string` key:
+ * ```ts
  * export default defineTenantResolver(async (key) => {
- *   return await db.query.tenants.findFirst({
- *     where: eq(tenants.domain, key)
- *   })
+ *   return await db.query.tenants.findFirst({ where: eq(tenants.domain, key) })
  * })
+ * ```
+ * @example
+ * Custom resolvers (`resolver: 'custom'`) receive the full `H3Event`:
+ * ```ts
+ * export default defineTenantResolver(async (event) => {
+ *   const host = getHeader(event, 'host') ?? ''
+ *   const key = host.split('.')[0]
+ *   return await db.query.tenants.findFirst({ where: eq(tenants.domain, key) })
+ * })
+ * ```
  */
-export function defineTenantResolver<T extends object>(fn: (key: string) => Promise<T | null | undefined>) {
+export function defineTenantResolver<T extends object>(fn: (keyOrEvent: string | H3Event) => Promise<T | null | undefined>) {
     // Attach a marker so the Nitro plugin can identify it
-    const wrapped = async (key: string) => fn(key);
+    const wrapped = async (keyOrEvent: string | H3Event) => fn(keyOrEvent);
     Object.defineProperty(wrapped, '_resolver', {
         value: wrapped,
         writable: false,

@@ -108,7 +108,7 @@ async function resolvePipeline(key: string): Promise<MockTenant | null> {
         return cached as MockTenant;
     }
 
-    const resolver = defineTenantResolver<MockTenant>(async (k) => DB[k] ?? null);
+    const resolver = defineTenantResolver<MockTenant>(async (k) => DB[k as string] ?? null);
     const tenant = (await resolver(key)) ?? null;
 
     if (tenant) {

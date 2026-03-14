@@ -452,17 +452,21 @@ export default defineEventHandler(async (event) => {
 
 ## Configuration
 
-| Option           | Type                                              | Default                                 | Description                                          |
-| ---------------- | ------------------------------------------------- | --------------------------------------- | ---------------------------------------------------- |
-| `resolver`       | `'subdomain' \| 'domain' \| 'header' \| 'custom'` | `'subdomain'`                           | How to extract tenant key from request               |
-| `headerName`     | `string`                                          | `'x-tenant-id'`                         | Header to read when `resolver = 'header'`            |
-| `resolveTenant`  | `string`                                          | `'~/server/tenancy/resolve'`            | Path to your resolver file                           |
-| `cache.driver`   | `'memory' \| 'redis' \| 'nitro'`                  | `'memory'`                              | Cache backend                                        |
-| `cache.ttl`      | `number`                                          | `60`                                    | Cache TTL in seconds                                 |
-| `cache.redisUrl` | `string`                                          | `$REDIS_URL` / `redis://localhost:6379` | Redis connection URL (redis driver only)             |
-| `onNotFound`     | `'throw' \| 'redirect:/path' \| 'null'`           | `'throw'`                               | Behaviour when tenant isn't found                    |
-| `skipPaths`      | `string[]`                                        | `[]`                                    | Path prefixes that bypass tenant resolution          |
-| `devtools`       | `boolean`                                         | `true` in dev                           | Show tenant info panel in Nuxt DevTools              |
+| Option                    | Type                                              | Default                                 | Description                                                                                 |
+| ------------------------- | ------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `resolver`                | `'subdomain' \| 'domain' \| 'header' \| 'custom'` | `'subdomain'`                           | How to extract tenant key from request                                                      |
+| `headerName`              | `string`                                          | `'x-tenant-id'`                         | Header to read when `resolver = 'header'` ⚠️ Only safe behind a trusted reverse-proxy      |
+| `resolveTenant`           | `string`                                          | `'~/server/tenancy/resolve'`            | Path to your resolver file                                                                  |
+| `cache.driver`            | `'memory' \| 'redis' \| 'nitro'`                  | `'memory'`                              | Cache backend                                                                               |
+| `cache.ttl`               | `number`                                          | `60`                                    | Cache TTL in seconds                                                                        |
+| `cache.redisUrl`          | `string`                                          | `$REDIS_URL` / `redis://localhost:6379` | Redis connection URL (redis driver only)                                                    |
+| `cache.maxMemoryEntries`  | `number`                                          | `500`                                   | Max in-memory entries before eviction (memory driver only)                                  |
+| `onNotFound`              | `'throw' \| 'redirect:/path' \| 'null'`           | `'throw'`                               | Behaviour when tenant isn't found                                                           |
+| `onError`                 | `'throw' \| 'redirect:/path'`                     | `'throw'`                               | Behaviour when the resolver throws an unexpected error                                      |
+| `skipPaths`               | `string[]`                                        | `[]`                                    | Path prefixes that bypass tenant resolution                                                 |
+| `baseDomain`              | `string`                                          | `''`                                    | Domain suffix to strip before subdomain extraction, e.g. `'.yoursaas.com'`                 |
+| `reservedSubdomains`      | `string[]`                                        | `[]`                                    | Subdomains treated as not-found (e.g. `['www', 'api']`). Only applies to `subdomain` mode  |
+| `devtools`                | `boolean`                                         | `true` in dev                           | Show tenant info panel in Nuxt DevTools                                                     |
 
 ---
 
