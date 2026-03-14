@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { getTenantFromCache, setTenantInCache, invalidateTenantCache } from '../../src/runtime/server/utils/cache';
+import {
+    getTenantFromCache,
+    setTenantInCache,
+    invalidateTenantCache,
+    invalidateTenantCacheAll,
+} from '../../src/runtime/server/utils/cache';
 
 // Access the private in-memory store via the module (reset between tests via
 // invalidate, which is the public API)
@@ -55,6 +60,67 @@ describe('cache (memory driver)', () => {
 
         expect(await getTenantFromCache('acme', MEM)).toEqual({ id: '1', name: 'New' });
     });
+
+    it('evicts the oldest entry when maxMemoryEntries is reached', async () => {
+        const opts = { driver: 'memory' as const, ttl: 60, maxMemoryEntries: 3 };
+
+        await setTenantInCache('t1', { id: '1' }, opts);
+        await setTenantInCache('t2', { id: '2' }, opts);
+        await setTenantInCache('t3', { id: '3' }, opts);
+        // This 4th write should evict 't1' (oldest)
+        await setTenantInCache('t4', { id: '4' }, opts);
+
+        expect(await getTenantFromCache('t1', opts)).toBeNull();
+        expect(await getTenantFromCache('t2', opts)).toEqual({ id: '2' });
+        expect(await getTenantFromCache('t3', opts)).toEqual({ id: '3' });
+        expect(await getTenantFromCache('t4', opts)).toEqual({ id: '4' });
+
+        // Cleanup
+        for (const k of ['t2', 't3', 't4']) await invalidateTenantCache(k);
+    });
+
+    it('evicts expired entries before falling back to oldest-entry eviction', async () => {
+        vi.useFakeTimers();
+        const opts = { driver: 'memory' as const, ttl: 1, maxMemoryEntries: 3 };
+
+        await setTenantInCache('t1', { id: '1' }, opts);
+        await setTenantInCache('t2', { id: '2' }, opts);
+        await setTenantInCache('t3', { id: '3' }, opts);
+
+        // Expire all three entries
+        vi.advanceTimersByTime(2000);
+
+        // 4th write — should sweep the three expired entries, then write t4
+        await setTenantInCache('t4', { id: '4' }, opts);
+
+        expect(await getTenantFromCache('t1', opts)).toBeNull();
+        expect(await getTenantFromCache('t2', opts)).toBeNull();
+        expect(await getTenantFromCache('t3', opts)).toBeNull();
+        // t4 was set at fake-time 2000ms with ttl=1s → expires at 3000ms; still valid now
+        expect(await getTenantFromCache('t4', opts)).toEqual({ id: '4' });
+        vi.useRealTimers();
+
+        await invalidateTenantCache('t4');
+    });
 });
 
 // The 'nitro' driver is tested in cache-nitro.test.ts (requires mocking nitropack/runtime)
+
+describe('invalidateTenantCacheAll (memory driver)', () => {
+    it('clears all entries from the memory store', async () => {
+        const opts = { driver: 'memory' as const, ttl: 60 };
+        await setTenantInCache('a', { id: '1' }, opts);
+        await setTenantInCache('b', { id: '2' }, opts);
+        await setTenantInCache('c', { id: '3' }, opts);
+
+        await invalidateTenantCacheAll(opts);
+
+        expect(await getTenantFromCache('a', opts)).toBeNull();
+        expect(await getTenantFromCache('b', opts)).toBeNull();
+        expect(await getTenantFromCache('c', opts)).toBeNull();
+    });
+
+    it('does not throw when the store is already empty', async () => {
+        await expect(invalidateTenantCacheAll({ driver: 'memory' })).resolves.toBeUndefined();
+    });
+});

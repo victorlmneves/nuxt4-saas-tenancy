@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getTenantFromCache, setTenantInCache, invalidateTenantCache } from '../../src/runtime/server/utils/cache';
+import {
+    getTenantFromCache,
+    setTenantInCache,
+    invalidateTenantCache,
+    invalidateTenantCacheAll,
+} from '../../src/runtime/server/utils/cache';
 
 // --- Mock nitropack/runtime storage ------------------------------------------
 
@@ -7,6 +12,7 @@ const mockStorage = vi.hoisted(() => ({
     getItem: vi.fn<(key: string) => Promise<unknown>>(),
     setItem: vi.fn<(key: string, value: unknown, opts?: object) => Promise<void>>(),
     removeItem: vi.fn<(key: string) => Promise<void>>(),
+    clear: vi.fn<() => Promise<void>>(),
 }));
 
 vi.mock('nitropack/runtime', () => ({
@@ -79,5 +85,29 @@ describe('cache (nitro driver)', () => {
 
         // No assertion needed on memory directly; just ensure no throw
         expect(mockStorage.removeItem).toHaveBeenCalled();
+    });
+});
+
+describe('invalidateTenantCacheAll (nitro driver)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('calls storage.clear() to flush all entries', async () => {
+        mockStorage.clear.mockResolvedValue(undefined);
+        await invalidateTenantCacheAll(NITRO);
+
+        expect(mockStorage.clear).toHaveBeenCalledOnce();
+    });
+
+    it('also clears the in-memory store', async () => {
+        // Seed the memory store first then call all-flush with nitro opts
+        const { setTenantInCache: set, getTenantFromCache: get } = await import('../../src/runtime/server/utils/cache');
+        await set('seed', { id: 'x' }, { driver: 'memory', ttl: 60 });
+        mockStorage.clear.mockResolvedValue(undefined);
+
+        await invalidateTenantCacheAll(NITRO);
+
+        expect(await get('seed', { driver: 'memory' })).toBeNull();
     });
 });

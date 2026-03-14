@@ -8,10 +8,18 @@ export interface CacheOptions {
     driver: 'memory' | 'redis' | 'nitro';
     ttl?: number;
     redisUrl?: string;
+    /**
+     * Maximum number of entries in the in-memory store. Oldest entry is evicted when full.
+     * @default 500
+     */
+    maxMemoryEntries?: number;
 }
 
 // In-memory store: key → { value, expiresAt }
 const memoryStore = new Map<string, { value: unknown; expiresAt: number }>();
+
+/** Default memory entry ceiling. Prevents unbounded growth under high-cardinality tenants. */
+const DEFAULT_MAX_MEMORY_ENTRIES = 500;
 
 const NITRO_STORAGE_BASE = 'tenancy';
 
@@ -62,7 +70,30 @@ export async function setTenantInCache(key: string, value: unknown, opts: CacheO
     const ttl = opts.ttl ?? 60;
 
     if (opts.driver === 'memory') {
-        memoryStore.set(key, { value, expiresAt: Date.now() + ttl * 1000 });
+        const ttlMs = ttl * 1000;
+        const maxEntries = opts.maxMemoryEntries ?? DEFAULT_MAX_MEMORY_ENTRIES;
+
+        // Evict expired entries first, then oldest-inserted entry if still over limit
+        if (memoryStore.size >= maxEntries) {
+            const now = Date.now();
+
+            for (const [k, entry] of memoryStore) {
+                if (entry.expiresAt <= now) {
+                    memoryStore.delete(k);
+                }
+
+                if (memoryStore.size < maxEntries) break;
+            }
+
+            // If still at/over limit after purging expired, evict the oldest entry
+            if (memoryStore.size >= maxEntries) {
+                const oldest = memoryStore.keys().next().value;
+
+                if (oldest !== undefined) memoryStore.delete(oldest);
+            }
+        }
+
+        memoryStore.set(key, { value, expiresAt: Date.now() + ttlMs });
 
         return;
     }
@@ -103,6 +134,43 @@ export async function invalidateTenantCache(key: string, opts?: CacheOptions): P
         const storage = useStorage(NITRO_STORAGE_BASE);
 
         await storage.removeItem(key);
+    }
+}
+
+/**
+ * Flush the entire tenant cache across all active drivers.
+ * Useful after bulk migrations or in test teardown.
+ * @param {CacheOptions} [opts] - Override the cache options (defaults to the runtime-configured driver).
+ * @returns {Promise<void>}
+ */
+export async function invalidateTenantCacheAll(opts?: CacheOptions): Promise<void> {
+    const resolvedOpts = opts ?? _defaultCacheOpts;
+
+    // Always clear the full in-memory store
+    memoryStore.clear();
+
+    if (resolvedOpts?.driver === 'redis') {
+        const redis = await getRedisClient(resolvedOpts.redisUrl);
+        // Scan + delete only keys under the 'tenancy:' prefix to avoid wiping unrelated data
+        let cursor = '0';
+
+        do {
+            const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', 'tenancy:*', 'COUNT', 100);
+            cursor = nextCursor;
+
+            if (keys.length > 0) {
+                await redis.del(...keys);
+            }
+        } while (cursor !== '0');
+
+        return;
+    }
+
+    if (resolvedOpts?.driver === 'nitro') {
+        const { useStorage } = await import('nitropack/runtime');
+        const storage = useStorage(NITRO_STORAGE_BASE);
+
+        await storage.clear();
     }
 }
 
