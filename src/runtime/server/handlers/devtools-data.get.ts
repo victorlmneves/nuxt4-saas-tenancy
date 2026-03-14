@@ -1,6 +1,7 @@
 import { defineEventHandler, createError } from 'h3';
 import { useRuntimeConfig } from 'nitropack/runtime';
 import { getTenantCacheStats } from '../utils/cache';
+import { getResolutionEvents } from '../utils/eventLog';
 
 /**
  * Dev-only endpoint: returns a JSON snapshot of the current tenancy config + cache state.
@@ -16,6 +17,7 @@ export default defineEventHandler(() => {
     return {
         config,
         cache: getTenantCacheStats(),
+        events: getResolutionEvents(),
         timestamp: Date.now(),
     };
 });

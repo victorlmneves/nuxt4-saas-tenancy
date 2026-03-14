@@ -1,6 +1,7 @@
 import { defineNitroPlugin, useRuntimeConfig } from 'nitropack/runtime';
 import { getHeader, sendError, createError, sendRedirect, type H3Event } from 'h3';
 import { getTenantFromCache, setTenantInCache, setCacheConfig } from '../utils/cache';
+import { addResolutionEvent } from '../utils/eventLog';
 import type { Tenant } from '../../../types';
 // @ts-expect-error virtual module - alias '#tenant-resolver' is registered by nuxt-saas-tenancy at build time
 import resolverMod from '#tenant-resolver';
@@ -31,8 +32,23 @@ export default defineNitroPlugin((nitroApp) => {
             return;
         }
 
-        // Skip user-configured paths
+        // Skip user-configured paths — log as 'skipped' for DevTools
+        const host = getHeader(event, 'host') ?? '';
+        const t0 = Date.now();
+
         if (config.skipPaths?.some((prefix) => path === prefix || path.startsWith(prefix))) {
+            if (import.meta.dev) {
+                addResolutionEvent({
+                    hostname: host,
+                    key: null,
+                    tenant: null,
+                    cacheHit: false,
+                    skipped: true,
+                    durationMs: Date.now() - t0,
+                    timestamp: t0,
+                });
+            }
+
             return;
         }
 
@@ -47,7 +63,6 @@ export default defineNitroPlugin((nitroApp) => {
             }
         }
 
-        const host = getHeader(event, 'host') ?? '';
         const tenantKey = config.resolver === 'header' ? (getHeader(event, config.headerName) ?? null) : extractTenantKey(host, config);
 
         type HooksWithCallHook = { callHook?: (name: string, ...args: unknown[]) => Promise<void> };
@@ -55,6 +70,18 @@ export default defineNitroPlugin((nitroApp) => {
 
         if (!tenantKey) {
             await hooks.callHook?.('tenancy:notFound', { event, key: null });
+
+            if (import.meta.dev) {
+                addResolutionEvent({
+                    hostname: host,
+                    key: null,
+                    tenant: null,
+                    cacheHit: false,
+                    skipped: false,
+                    durationMs: Date.now() - t0,
+                    timestamp: t0,
+                });
+            }
 
             return handleNotFound(event, config.onNotFound);
         }
@@ -68,11 +95,35 @@ export default defineNitroPlugin((nitroApp) => {
             if (cached.active === false) {
                 await hooks.callHook?.('tenancy:notFound', { event, key: tenantKey });
 
+                if (import.meta.dev) {
+                    addResolutionEvent({
+                        hostname: host,
+                        key: tenantKey,
+                        tenant: null,
+                        cacheHit: true,
+                        skipped: false,
+                        durationMs: Date.now() - t0,
+                        timestamp: t0,
+                    });
+                }
+
                 return handleNotFound(event, config.onNotFound);
             }
 
             event.context.tenant = cached;
             await hooks.callHook?.('tenancy:cacheHit', { event, tenant: cached, key: tenantKey });
+
+            if (import.meta.dev) {
+                addResolutionEvent({
+                    hostname: host,
+                    key: tenantKey,
+                    tenant: tenantKey,
+                    cacheHit: true,
+                    skipped: false,
+                    durationMs: Date.now() - t0,
+                    timestamp: t0,
+                });
+            }
 
             return;
         }
@@ -87,6 +138,18 @@ export default defineNitroPlugin((nitroApp) => {
         } catch (e) {
             console.error('[nuxt-saas-tenancy] Resolver threw:', e);
 
+            if (import.meta.dev) {
+                addResolutionEvent({
+                    hostname: host,
+                    key: tenantKey,
+                    tenant: null,
+                    cacheHit: false,
+                    skipped: false,
+                    durationMs: Date.now() - t0,
+                    timestamp: t0,
+                });
+            }
+
             if (config.onError?.startsWith('redirect:')) {
                 return sendRedirect(event, config.onError.slice('redirect:'.length), 302);
             }
@@ -97,12 +160,36 @@ export default defineNitroPlugin((nitroApp) => {
         if (!tenant) {
             await hooks.callHook?.('tenancy:notFound', { event, key: tenantKey });
 
+            if (import.meta.dev) {
+                addResolutionEvent({
+                    hostname: host,
+                    key: tenantKey,
+                    tenant: null,
+                    cacheHit: false,
+                    skipped: false,
+                    durationMs: Date.now() - t0,
+                    timestamp: t0,
+                });
+            }
+
             return handleNotFound(event, config.onNotFound);
         }
 
         // Treat explicitly deactivated tenants the same as not-found
         if ((tenant as Tenant).active === false) {
             await hooks.callHook?.('tenancy:notFound', { event, key: tenantKey });
+
+            if (import.meta.dev) {
+                addResolutionEvent({
+                    hostname: host,
+                    key: tenantKey,
+                    tenant: null,
+                    cacheHit: false,
+                    skipped: false,
+                    durationMs: Date.now() - t0,
+                    timestamp: t0,
+                });
+            }
 
             return handleNotFound(event, config.onNotFound);
         }
@@ -116,6 +203,18 @@ export default defineNitroPlugin((nitroApp) => {
             key: tenantKey,
             fromCache: false,
         });
+
+        if (import.meta.dev) {
+            addResolutionEvent({
+                hostname: host,
+                key: tenantKey,
+                tenant: tenantKey,
+                cacheHit: false,
+                skipped: false,
+                durationMs: Date.now() - t0,
+                timestamp: t0,
+            });
+        }
     });
 });
 

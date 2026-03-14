@@ -85,6 +85,16 @@ h2 {
 .status { font-size: 11.5px; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; display: none; }
 .status.ok { display: block; background: #3fb95018; color: #3fb950; border: 1px solid #3fb95030; }
 .status.err { display: block; background: #f8514918; color: #f85149; border: 1px solid #f8514930; }
+.evt { display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12px; min-width:0; }
+.evt + .evt { border-top: 1px solid #21262d; }
+.evt-host { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#c9d1d9; min-width:0; }
+.badge { display:inline-block; border-radius:3px; padding:0 5px; font-size:10.5px; line-height:1.7; font-weight:600; flex-shrink:0; }
+.badge.hit  { background:#3fb95020; color:#3fb950; }
+.badge.miss { background:#e3b34120; color:#e3b341; }
+.badge.skip { background:#ffffff10; color:#8b949e; }
+.badge.nf   { background:#f8514920; color:#f85149; }
+.evt-dur  { color:#8b949e; font-size:11px; min-width:40px; text-align:right; flex-shrink:0; }
+.evt-time { color:#484f58; font-size:11px; min-width:60px; text-align:right; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -104,10 +114,20 @@ h2 {
 
 <div class="card">
   <h2>Cache &nbsp;<span id="cache-label" style="font-weight:400;color:#484f58"></span></h2>
+  <div style="display:flex;gap:18px;padding:4px 0 8px;border-bottom:1px solid #21262d;margin-bottom:4px;font-size:12px">
+    hits &nbsp;<span id="stat-hits" style="color:#3fb950;font-weight:600">0</span>
+    &nbsp;&nbsp;misses &nbsp;<span id="stat-misses" style="color:#e3b341;font-weight:600">0</span>
+    &nbsp;&nbsp;evictions &nbsp;<span id="stat-evict" style="color:#f85149;font-weight:600">0</span>
+  </div>
   <div id="cache"></div>
 </div>
 
 <div class="ts" id="ts"></div>
+
+<div class="card">
+  <h2>Events &nbsp;<span id="events-label" style="font-weight:400;color:#484f58"></span></h2>
+  <div id="events"></div>
+</div>
 
 <script>
 function esc(s) {
@@ -135,6 +155,32 @@ function fmtVal(v) {
     return pill(String(v), !v);
   }
   return '<span>' + esc(String(v)) + '</span>';
+}
+
+function renderEvents(events) {
+  var el = document.getElementById('events');
+  var label = document.getElementById('events-label');
+  if (!events || !events.length) {
+    label.textContent = '';
+    el.innerHTML = '<div class="empty">No requests recorded yet.</div>';
+    return;
+  }
+  label.textContent = '(' + events.length + ')';
+  el.innerHTML = events.map(function(e) {
+    var bc = e.skipped ? 'skip' : (e.tenant ? (e.cacheHit ? 'hit' : 'miss') : 'nf');
+    var bl = e.skipped ? 'SKIP' : (e.tenant ? (e.cacheHit ? 'HIT' : 'MISS') : 'NOT FOUND');
+    var disp = e.key ? esc(e.hostname) + ' \u2192 ' + esc(e.key) : esc(e.hostname);
+    var d = new Date(e.timestamp);
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mm = String(d.getMinutes()).padStart(2, '0');
+    var ss = String(d.getSeconds()).padStart(2, '0');
+    return '<div class="evt">' +
+      '<span class="evt-host">' + disp + '</span>' +
+      '<span class="badge ' + bc + '">' + bl + '</span>' +
+      '<span class="evt-dur">' + e.durationMs + 'ms</span>' +
+      '<span class="evt-time">' + hh + ':' + mm + ':' + ss + '</span>' +
+      '</div>';
+  }).join('');
 }
 
 function load() {
@@ -204,6 +250,12 @@ function render(d) {
       })
       .join('');
   }
+
+  document.getElementById('stat-hits').textContent = cache.hits || 0;
+  document.getElementById('stat-misses').textContent = cache.misses || 0;
+  document.getElementById('stat-evict').textContent = cache.evictions || 0;
+
+  renderEvents(d.events || []);
 
   document.getElementById('ts').textContent =
     'Last refreshed: ' + new Date(d.timestamp).toLocaleTimeString();

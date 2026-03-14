@@ -1,5 +1,6 @@
 import { defineEventHandler, createError, readBody } from 'h3';
-import { invalidateTenantCache, invalidateTenantCacheAll } from '../utils/cache';
+import { invalidateTenantCache, invalidateTenantCacheAll, resetCacheCounters } from '../utils/cache';
+import { clearResolutionEvents } from '../utils/eventLog';
 
 /**
  * Dev-only endpoint: invalidates one or all tenant cache entries.
@@ -20,6 +21,8 @@ export default defineEventHandler(async (event) => {
     }
 
     await invalidateTenantCacheAll();
+    resetCacheCounters();
+    clearResolutionEvents();
 
     return { ok: true, invalidated: 'all' };
 });

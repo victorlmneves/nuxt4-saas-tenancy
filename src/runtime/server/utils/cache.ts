@@ -27,6 +27,9 @@ const NITRO_STORAGE_BASE = 'tenancy';
 // Allows callers to call invalidateTenantCache(key) without re-passing opts.
 let _defaultCacheOpts: CacheOptions | undefined;
 
+// Cumulative hit/miss/eviction counters — reset via resetCacheCounters().
+const _counters = { hits: 0, misses: 0, evictions: 0 };
+
 export function setCacheConfig(opts: CacheOptions): void {
     _defaultCacheOpts = opts;
 }
@@ -36,14 +39,19 @@ export async function getTenantFromCache<T = unknown>(key: string, opts: CacheOp
         const entry = memoryStore.get(key);
 
         if (!entry) {
+            _counters.misses++;
+
             return null;
         }
 
         if (Date.now() > entry.expiresAt) {
             memoryStore.delete(key);
+            _counters.misses++;
 
             return null;
         }
+
+        _counters.hits++;
 
         return entry.value as T;
     }
@@ -52,7 +60,15 @@ export async function getTenantFromCache<T = unknown>(key: string, opts: CacheOp
         const redis = await getRedisClient(opts.redisUrl);
         const raw = await redis.get(`tenancy:${key}`);
 
-        return raw ? (JSON.parse(raw) as T) : null;
+        if (raw) {
+            _counters.hits++;
+
+            return JSON.parse(raw) as T;
+        }
+
+        _counters.misses++;
+
+        return null;
     }
 
     if (opts.driver === 'nitro') {
@@ -60,7 +76,15 @@ export async function getTenantFromCache<T = unknown>(key: string, opts: CacheOp
         const storage = useStorage(NITRO_STORAGE_BASE);
         const value = await storage.getItem<T>(key);
 
-        return value ?? null;
+        if (value != null) {
+            _counters.hits++;
+
+            return value;
+        }
+
+        _counters.misses++;
+
+        return null;
     }
 
     return null;
@@ -89,7 +113,10 @@ export async function setTenantInCache<T = unknown>(key: string, value: T, opts:
             if (memoryStore.size >= maxEntries) {
                 const oldest = memoryStore.keys().next().value;
 
-                if (oldest !== undefined) memoryStore.delete(oldest);
+                if (oldest !== undefined) {
+                    memoryStore.delete(oldest);
+                    _counters.evictions++;
+                }
             }
         }
 
@@ -190,6 +217,12 @@ export interface TenantCacheStats {
     entryCount: number;
     /** Individual entries — only populated for the memory driver. */
     entries: TenantCacheEntry[];
+    /** Cumulative cache hits since server start (or last resetCacheCounters()). */
+    hits: number;
+    /** Cumulative cache misses since server start (or last resetCacheCounters()). */
+    misses: number;
+    /** Cumulative memory evictions due to maxMemoryEntries overflow. */
+    evictions: number;
 }
 
 /**
@@ -215,10 +248,17 @@ export function getTenantCacheStats(): TenantCacheStats {
             }
         }
 
-        return { driver, entryCount: entries.length, entries };
+        return { driver, entryCount: entries.length, entries, ..._counters };
     }
 
-    return { driver, entryCount: -1, entries: [] };
+    return { driver, entryCount: -1, entries: [], ..._counters };
+}
+
+/** Reset hit/miss/eviction counters to zero (called after flushing the cache). */
+export function resetCacheCounters(): void {
+    _counters.hits = 0;
+    _counters.misses = 0;
+    _counters.evictions = 0;
 }
 
 // Lazy Redis client singleton
