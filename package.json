@@ -57,7 +57,7 @@
         "eslint-plugin-regexp": "^3.0.0",
         "eslint-plugin-vue": "^10.7.0",
         "globals": "^17.3.0",
-        "nuxt": "^4.0.0",
+        "nuxt": "^4.4.6",
         "postcss-html": "^1.8.1",
         "prettier": "^3.8.1",
         "stylelint": "^17.4.0",
